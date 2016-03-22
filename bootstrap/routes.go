@@ -1,4 +1,4 @@
-package supernode
+package bootstrap
 
 import (
 	"net/http"
@@ -36,9 +36,9 @@ var routes = Routes{
 		Index,
 	},
 	Route{
-		"GetPeersForRoom",
+		"Peers",
 		"GET",
-		"/GetPeersForRoom/{roomname}",
+		"/peers/{roomname}",
 		GetPeersForRoom,
 	},
 }

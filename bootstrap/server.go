@@ -1,4 +1,4 @@
-package supernode
+package bootstrap
 
 import (
 	"encoding/json"
