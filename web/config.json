@@ -1,0 +1,6 @@
+{
+    "port" : 8000,
+    "staticUrlPrefix" : "/static/",
+    "staticDir" : "./web/static/",
+    "supernodeURL": "http://localhost:5000"
+}

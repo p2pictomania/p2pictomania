@@ -1,0 +1,17 @@
+{% extends "base.html" %}
+
+{% block top_nav_bar_left %}
+    <li class="active"><a href="#">Home</a></li>
+    <li><a href="#">About</a></li>
+    <li><a href="#">Contact</a></li>
+{% endblock %}
+
+{% block top_nav_bar_right %}
+    <li class="active"><a href="./">Default <span class="sr-only">(current)</span></a></li>
+    <li><a href="#">Static top</a></li>
+    <li><a href="#">Fixed top</a></li>
+{% endblock %}
+
+{% block content %}
+{{testValue}}
+{% endblock %}
