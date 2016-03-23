@@ -14,4 +14,43 @@
 
 {% block content %}
 {{testValue}}
+
+<form id="form">
+    <input type="text" id="msg" size="64"/>
+    <input type="submit" value="Send" />
+</form>
+{% endblock %}
+
+{% block onload %}
+<script type="text/javascript">
+    $(function() {
+
+        var conn;
+        var msg = $("#msg");
+
+        $("#form").submit(function() {
+            if (!conn) {
+                return false;
+            }
+            if (!msg.val()) {
+                return false;
+            }
+            conn.send(msg.val());
+            msg.val("");
+            return false
+        });
+
+        if (window["WebSocket"]) {
+            conn = new WebSocket("ws://localhost:8000/ws/");
+            conn.onclose = function(evt) {
+                console.log("connection closed");
+            }
+            conn.onmessage = function(evt) {
+                console.log(evt.data);
+            }
+        } else {
+            console.log("Your browser does not support WebSockets");
+        }
+    });
+</script>
 {% endblock %}

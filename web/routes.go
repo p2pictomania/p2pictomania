@@ -52,4 +52,10 @@ var routes = Routes{
 		"/Draw/",
 		Draw,
 	},
+	Route{
+		"WebSock",
+		"GET",
+		"/ws/",
+		HandleSocketConn,
+	},
 }

@@ -34,6 +34,8 @@ func StartServer() {
 	Config = parseConfigFile()
 	router := NewRouter()
 	log.Println("Starting UI server on port " + strconv.Itoa(Config.Port))
+	go Hub.run()
+	log.Println("Now accepting incoming websocket connections")
 	err := http.ListenAndServe(":"+strconv.Itoa(Config.Port), router)
 	if err != nil {
 		log.Fatalf("Failed to start the UI server: %s", err)
