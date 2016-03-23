@@ -2,6 +2,7 @@ package web
 
 import (
 	"io/ioutil"
+	"log"
 	"net/http"
 
 	"github.com/flosch/pongo2"
@@ -10,7 +11,8 @@ import (
 var tplIndex = pongo2.Must(pongo2.FromFile("web/templates/index.html"))
 var tplDraw = pongo2.Must(pongo2.FromFile("web/templates/draw.html"))
 
-func perror(err error, w http.ResponseWriter) {
+// httpError returns a HTTP 5xx error
+func httpError(err error, w http.ResponseWriter) {
 	if err != nil {
 		http.Error(w, err.Error(), http.StatusInternalServerError)
 	}
@@ -19,22 +21,36 @@ func perror(err error, w http.ResponseWriter) {
 //Index handler handles the landing page of the UI
 func Index(w http.ResponseWriter, r *http.Request) {
 	err := tplIndex.ExecuteWriter(pongo2.Context{"testValue": "Hello World"}, w)
-	perror(err, w)
+	httpError(err, w)
 }
 
+// RoomList returns a page with the list of rooms that are available to join
 func RoomList(w http.ResponseWriter, r *http.Request) {
-	url := Config.SupernodeURL + "/GetPeersForRoom/default"
+	url := Config.SupernodeURL + "/peers/default"
 	res, err := http.Get(url)
-	perror(err, w)
+	httpError(err, w)
 	defer res.Body.Close()
 	contents, err := ioutil.ReadAll(res.Body)
-	perror(err, w)
+	httpError(err, w)
 	err = tplIndex.ExecuteWriter(pongo2.Context{"testValue": string(contents)}, w)
-	perror(err, w)
+	httpError(err, w)
 }
 
 //Index handler handles the landing page of the UI
 func Draw(w http.ResponseWriter, r *http.Request) {
 	err := tplIndex.ExecuteWriter(pongo2.Context{"testValue": "Hello World"}, w)
-	perror(err, w)
+	httpError(err, w)
+}
+
+// HandleSocketConn is used as the endpoint fot websocket connections to be made
+func HandleSocketConn(w http.ResponseWriter, r *http.Request) {
+	ws, err := upgrader.Upgrade(w, r, nil)
+	if err != nil {
+		log.Println(err)
+		return
+	}
+	c := &connection{send: make(chan []byte, 256), ws: ws}
+	Hub.register <- c
+	go c.WriteMessagesToSocket()
+	c.ReadMessagesFromSocket()
 }
