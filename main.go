@@ -25,8 +25,10 @@ func main() {
 
 	tempName := os.Args[2]
 
-	connections.NodeListenPort = tempPort
-	connections.NodeNickName = tempName
+	//set global NodeNickName, NodeListenPort and EncryptionKey
+	connections.SetListenPort(tempPort)
+	connections.SetNickName(tempName)
+	connections.SetEncryptionKey("djreglhvbcnfqstuwxymkpioaz456789")
 
 	go web.StartServer()
 	go bootstrap.StartServer()
