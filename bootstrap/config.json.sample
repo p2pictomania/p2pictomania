@@ -1,0 +1,5 @@
+{
+    "dns": "autogra.de",
+    "dnsimpleURL": "https://api.dnsimple.com/v1/domains/autogra.de/records",
+    "dnsimpleAuthToken": "<token>"
+}

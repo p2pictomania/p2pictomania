@@ -14,6 +14,7 @@ func Index(w http.ResponseWriter, r *http.Request) {
 	fmt.Fprintf(w, "Hi")
 }
 
+// GetPeersForRoom handler retuns the peers for a given room name
 func GetPeersForRoom(w http.ResponseWriter, r *http.Request) {
 	urlVars := mux.Vars(r)
 	log.Printf("Peers for room %s requested", urlVars["roomname"])

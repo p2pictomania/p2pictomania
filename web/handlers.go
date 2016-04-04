@@ -26,7 +26,7 @@ func Index(w http.ResponseWriter, r *http.Request) {
 
 // RoomList returns a page with the list of rooms that are available to join
 func RoomList(w http.ResponseWriter, r *http.Request) {
-	url := Config.SupernodeURL + "/peers/default"
+	url := Config.BootstrapNodeURL + "/peers/default"
 	res, err := http.Get(url)
 	httpError(err, w)
 	defer res.Body.Close()
@@ -36,7 +36,7 @@ func RoomList(w http.ResponseWriter, r *http.Request) {
 	httpError(err, w)
 }
 
-//Index handler handles the landing page of the UI
+// Draw handler handles the landing page of the UI
 func Draw(w http.ResponseWriter, r *http.Request) {
 	err := tplIndex.ExecuteWriter(pongo2.Context{"testValue": "Hello World"}, w)
 	httpError(err, w)
