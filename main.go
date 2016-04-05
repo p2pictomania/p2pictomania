@@ -1,12 +1,15 @@
 package main
 
 import (
-	"github.com/p2pictomania/p2pictomania/bootstrap"
-	"github.com/p2pictomania/p2pictomania/connections"
-	"github.com/p2pictomania/p2pictomania/web"
+	"bootstrap"
+	"connections"
+	"web"
 	"log"
 	"os"
 	"strconv"
+    "web/routes"
+    "web/templates"
+    
 )
 
 func main() {
@@ -24,15 +27,18 @@ func main() {
 	}
 
 	tempName := os.Args[2]
-
+    
+    mx := routes.NewRouter()
+    
 	connections.NodeListenPort = tempPort
 	connections.NodeNickName = tempName
-
 	go web.StartServer()
 	go bootstrap.StartServer()
 
 	connections.InitSocketCache(&connections.Sc)
 	go connections.ServerListener(connections.NodeListenPort)
+
+
 
 	//block forever
 	select {}

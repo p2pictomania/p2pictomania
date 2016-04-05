@@ -23,7 +23,7 @@ func NewRouter() *mux.Router {
 			Methods(route.Method).
 			Path(route.Pattern).
 			Name(route.Name).
-			Handler(route.HandlerFunc)
+			Handler(route.HandlerFunc).GetError()
 	}
 
 	//Setting up routes for static files
@@ -41,10 +41,16 @@ var routes = Routes{
 		Index,
 	},
 	Route{
-		"RoomList",
+		"gameRoom",
 		"GET",
-		"/RoomList/",
-		RoomList,
+		"/gameRoom/",
+		gameRoom,
+	},
+    Route{
+		"login",
+		"GET",
+		"/login/",
+		login,
 	},
 	Route{
 		"Draw",
