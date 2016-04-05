@@ -2,15 +2,9 @@ package connections
 
 import (
 	"bufio"
-	"crypto/aes"
-	"crypto/cipher"
-	"crypto/rand"
-	"encoding/base64"
 	"encoding/json"
-	"errors"
 	"fmt"
 	zmq "github.com/pebbe/zmq4"
-	"io"
 	"log"
 	"net"
 	"reflect"
