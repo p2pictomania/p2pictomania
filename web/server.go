@@ -8,14 +8,15 @@ import (
 	"strconv"
 )
 
+// Config object stores the values in the config.json file
 var Config ConfigObject
 
 //ConfigObject holds the parsed config.json file
 type ConfigObject struct {
-	Port            int    `json:"port"`
-	StaticUrlPrefix string `json:"staticUrlPrefix"`
-	StaticDir       string `json:"staticDir"`
-	SupernodeURL    string `json:"superNodeURL"`
+	Port             int    `json:"port"`
+	StaticURLPrefix  string `json:"staticURLPrefix"`
+	StaticDir        string `json:"staticDir"`
+	BootstrapNodeURL string `json:"bootstrapNodeURL"`
 }
 
 func parseConfigFile() (configObject ConfigObject) {

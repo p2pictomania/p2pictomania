@@ -40,6 +40,7 @@ func (h *hub) run() {
 	}
 }
 
+// Hub holds the data structure for connected nodes for websockets
 var Hub = hub{
 	broadcast:   make(chan []byte),
 	register:    make(chan *connection),

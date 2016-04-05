@@ -6,6 +6,7 @@ import (
 	"github.com/gorilla/mux"
 )
 
+// Route struct holds the handler, name and pattern for each route
 type Route struct {
 	Name        string
 	Method      string
@@ -13,8 +14,10 @@ type Route struct {
 	HandlerFunc http.HandlerFunc
 }
 
+// Routes holds the list of routs supported by bootstrap
 type Routes []Route
 
+// NewRouter returns a new Gorilla mux router based on the configured routes
 func NewRouter() *mux.Router {
 
 	router := mux.NewRouter().StrictSlash(true)
