@@ -178,7 +178,7 @@ func waitForAPIStartAndLeader() {
 func initTables() {
 	query := "[" +
 		"\"CREATE TABLE IF NOT EXISTS `bootstrap` (`ip` TEXT, `active` INTEGER DEFAULT 1, PRIMARY KEY(ip));\"," +
-		"\"CREATE TABLE `users` (`name` TEXT NOT NULL, `ip` TEXT NOT NULL, `active` INTEGER DEFAULT 1, PRIMARY KEY(name));\"," +
+		// "\"CREATE TABLE `users` (`name` TEXT NOT NULL, `ip` TEXT NOT NULL, `active` INTEGER DEFAULT 1, PRIMARY KEY(name));\"," +
 		"\"CREATE TABLE `rooms` (`id` INTEGER NOT NULL PRIMARY KEY AUTOINCREMENT, `name` TEXT NOT NULL, `open` INTEGER DEFAULT 1);\"," +
 		"\"CREATE TABLE `player_room_mapping` (`room_id` INTEGER NOT NULL, `player_name` TEXT NOT NULL, `player_ip` TEXT NOT NULL, UNIQUE (`room_id`, `player_name`) ON CONFLICT REPLACE);\"" +
 		"]"
@@ -231,33 +231,6 @@ func join(joinAddr, raftAddr string) error {
 	return nil
 }
 
-func getLeaderIP(listOfBootstrapNodes []string) (string, error) {
-	for _, ip := range listOfBootstrapNodes {
-		url := fmt.Sprintf("http://%s:%d/status", ip, DBApiPort)
-		res, err := http.Get(url)
-		if err != nil {
-			log.Println(err)
-			continue
-		}
-		defer res.Body.Close()
-		content, err := ioutil.ReadAll(res.Body)
-		var j interface{}
-		err = json.Unmarshal(content, &j)
-		if err != nil {
-			log.Println(err)
-			continue
-		}
-		data := j.(map[string]interface{})
-		store := data["store"].(map[string]interface{})
-		raft := store["raft"].(map[string]interface{})
-		state := raft["state"].(string)
-		if state == "Leader" {
-			return ip, nil
-		}
-	}
-	return "", errors.New("Could not find bootstrap hosts")
-}
-
 // checkForBootstrapNodes checks for existing Bootstrap nodes
 // and returns true if if added itself to the Bootstrap nodes list
 func checkForBootstrapNodes() bool {
@@ -265,6 +238,7 @@ func checkForBootstrapNodes() bool {
 	log.Printf("Detected %d Bootstrap Server(s) in the network", len(listOfBootstrapNodes))
 	// Case where there are no Bootstrap nodes
 	if len(listOfBootstrapNodes) == 0 {
+		log.Println("No nodes bound to DNS name, setting up new bootstrap DB")
 		err := addSelfToDNS()
 		if err != nil {
 			log.Println(err)
@@ -278,16 +252,42 @@ func checkForBootstrapNodes() bool {
 			log.Println(err)
 			return false
 		}
-		leaderIP, err := getLeaderIP(listOfBootstrapNodes)
+		leaderIP, err := GetLeaderIP(listOfBootstrapNodes)
 		// If no leaderIP found assume all nodes in the bootstrap to be dead
 		// bind self
 		if err != nil {
-			log.Println(err)
+			log.Printf("No leader IP found : %s", err)
 			go setupDB("")
 			return true
 		}
 		go setupDB(leaderIP)
 		return true
+	} else {
+		// check to see if we were bootstrap node before (DNS bound).. if yes.. join the cluster
+		publicIP, err := getPublicIP()
+		if err != nil {
+			log.Println("Public IP could not be fetched")
+			return false
+		}
+		if stringInSlice(publicIP, listOfBootstrapNodes) {
+			leaderIP, err := GetLeaderIP(listOfBootstrapNodes)
+			if err != nil {
+				log.Println(err)
+				go setupDB("")
+				return true
+			}
+			go setupDB(leaderIP)
+			return true
+		}
+	}
+	return false
+}
+
+func stringInSlice(a string, list []string) bool {
+	for _, b := range list {
+		if b == a {
+			return true
+		}
 	}
 	return false
 }

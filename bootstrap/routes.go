@@ -39,9 +39,15 @@ var routes = Routes{
 		Index,
 	},
 	Route{
-		"Peers",
+		"GetPeers",
 		"GET",
-		"/peers/{roomname}",
+		"/peers/{roomid}",
 		GetPeersForRoom,
+	},
+	Route{
+		"PlayerJoin",
+		"POST",
+		"/player/join",
+		AddPlayerToRoom,
 	},
 }
