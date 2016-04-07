@@ -2,17 +2,11 @@ package connections
 
 import (
 	"bufio"
-<<<<<<< HEAD
 	"bytes"
 	"encoding/json"
 	"fmt"
 	zmq "github.com/pebbe/zmq4"
 	"io/ioutil"
-=======
-	"encoding/json"
-	"fmt"
-	zmq "github.com/pebbe/zmq4"
->>>>>>> e7fb2bc1e1c5e5494d114439ab79e59ebca94c5e
 	"log"
 	"net"
 	"net/http"
