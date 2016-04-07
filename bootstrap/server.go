@@ -42,7 +42,7 @@ func parseConfigFile() (configObject ConfigObject) {
 }
 
 func getPublicIP() (string, error) {
-	resp, err := http.Get("http://icanhazip.com/")
+	resp, err := http.Get("http://ipv4.icanhazip.com/")
 	if err != nil {
 		return "", err
 	}
