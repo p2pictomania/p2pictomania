@@ -7,9 +7,9 @@
 {% endblock %}
 
 {% block top_nav_bar_right %}
-    <li class="active"><a href="./">Default <span class="sr-only">(current)</span></a></li>
+    <li class="active"><a href="./login/">Default <span class="sr-only">(current)</span></a></li>
     <!--routing not working even for absulute localhost path.....-->
-    <li><a href="http://localhost:8000/login.html">Enter game</a></li>
+    <li><a href="/login/">Enter game</a></li>
     <!--routing not working even for absulute localhost path.....-->
     <li><a href="#">Fixed top</a></li>
 {% endblock %}
@@ -49,6 +49,7 @@
             }
             conn.onmessage = function(evt) {
                 console.log(evt.data);
+
             }
         } else {
             console.log("Your browser does not support WebSockets");

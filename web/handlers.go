@@ -21,31 +21,10 @@ func httpError(err error, w http.ResponseWriter) {
 	}
 }
 
-//Index handler handles the landing page of the UI
-func Index(w http.ResponseWriter, r *http.Request) {
-	err := tplIndex.ExecuteWriter(pongo2.Context{"testValue": "Hello World"}, w)
-	httpError(err, w)
-}
-// Login page handler
-func login(w http.ResponseWriter, r *http.Request) {
-    fmt.Fprintln(w, "Welcome!")
-	url := Config.SupernodeURL + "/login"
-    //url := "http://localhost:8000/login.html" abselote localhost path not working
-
-	res, err := http.Get(url)
-    log.Printf("inside login handler, url is: "+ url)
-    defer res.Body.Close()
-	contents, err := ioutil.ReadAll(res.Body)
-	httpError(err, w)
-	err = tplLogin.ExecuteWriter(pongo2.Context{"testValue": string(contents)}, w)
-	httpError(err, w)
-	
-}
-
 // RoomList returns a page with the list of rooms that are available to join
 func gameRoom(w http.ResponseWriter, r *http.Request) {
-	url := Config.SupernodeURL + "/gameRoom"
-    //url := "http://localhost:8000/gameRoom.html" abselote localhost path not working
+	//url := Config.SupernodeURL + "/gameRoom"
+    url := "http://localhost:8000/gameRoom/" //abselote localhost path not working
 
 	res, err := http.Get(url)
 	httpError(err, w)
@@ -56,6 +35,31 @@ func gameRoom(w http.ResponseWriter, r *http.Request) {
 	err = tplRoom.ExecuteWriter(pongo2.Context{"testValue": string(contents)}, w)
 	httpError(err, w)
 }
+
+// Login page handler
+func login(w http.ResponseWriter, r *http.Request) {
+    //fmt.Fprintln(w, "Welcome!")
+	//url := Config.SupernodeURL + "login"
+    url := "http://localhost:8000/login.html" //not working
+    //url := "http://localhost:8000/login.html"  not working
+
+    //fmt.Printf("inside login handler, with url:" + url);
+	res, err := http.Get(url)
+    defer res.Body.Close()
+	contents, err := ioutil.ReadAll(res.Body)
+	httpError(err, w)
+	err = tplLogin.ExecuteWriter(pongo2.Context{"testValue": "tests", w)
+	httpError(err, w)
+	
+}
+
+//Index handler handles the landing page of the UI
+func Index(w http.ResponseWriter, r *http.Request) {
+	err := tplIndex.ExecuteWriter(pongo2.Context{"testValue": "Hello World"}, w)
+	httpError(err, w)
+}
+
+
 
 
 

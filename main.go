@@ -7,8 +7,6 @@ import (
 	"log"
 	"os"
 	"strconv"
-    "web/routes"
-    "web/templates"
     
 )
 
@@ -28,7 +26,6 @@ func main() {
 
 	tempName := os.Args[2]
     
-    mx := routes.NewRouter()
     
 	connections.NodeListenPort = tempPort
 	connections.NodeNickName = tempName

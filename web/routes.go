@@ -29,16 +29,16 @@ func NewRouter() *mux.Router {
 	//Setting up routes for static files
 	s := http.StripPrefix(Config.StaticUrlPrefix, http.FileServer(http.Dir(Config.StaticDir)))
 	router.PathPrefix(Config.StaticUrlPrefix).Handler(s)
-
+//router.PathPrefix("/").Handler(s) 
 	return router
 }
 
 var routes = Routes{
 	Route{
-		"Index",
+		"WebSock",
 		"GET",
-		"/",
-		Index,
+		"/ws/",
+		HandleSocketConn,
 	},
 	Route{
 		"gameRoom",
@@ -58,10 +58,10 @@ var routes = Routes{
 		"/Draw/",
 		Draw,
 	},
-	Route{
-		"WebSock",
+    Route{
+		"Index",
 		"GET",
-		"/ws/",
-		HandleSocketConn,
+		"/",
+		Index,
 	},
 }
