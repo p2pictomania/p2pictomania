@@ -54,6 +54,10 @@ func getPublicIP() (string, error) {
 	return strings.TrimSpace(string(ip)), nil
 }
 
+func GetPublicIP() (string, error) {
+	return getPublicIP()
+}
+
 func addSelfToDNS() error {
 	url := Config.DnsimpleURL
 	publicIP, err := getPublicIP()

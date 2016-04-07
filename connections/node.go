@@ -2,11 +2,20 @@ package connections
 
 import (
 	"bufio"
+<<<<<<< HEAD
+	"bytes"
 	"encoding/json"
 	"fmt"
 	zmq "github.com/pebbe/zmq4"
+	"io/ioutil"
+=======
+	"encoding/json"
+	"fmt"
+	zmq "github.com/pebbe/zmq4"
+>>>>>>> e7fb2bc1e1c5e5494d114439ab79e59ebca94c5e
 	"log"
 	"net"
+	"net/http"
 	"reflect"
 	"strconv"
 	"strings"
@@ -28,17 +37,36 @@ type RoomMember struct {
 	NickName   string
 }
 
+type addPlayerToRoomJSON struct {
+	RoomID         int    `json:"roomID"`
+	PlayerNickName string `json:"nickName"`
+	PlayerIP       string `json:"playerIP"`
+}
+
+type queryResults struct {
+	Results []struct {
+		Columns []string        `json:"columns"`
+		Types   []string        `json:"types"`
+		Values  [][]interface{} `json:"values"`
+		Time    float64         `json:"time"`
+	} `json:"results"`
+}
+
+type status struct {
+	Status int `json:"status"`
+}
+
 //global declarations
 //socketCache
 var Sc SocketCache
 
 //should get this by a DNS query ideally
-var BootstrapServerIP string = "127.0.0.1"
-var BootstrapServerPort int = 5000
+//var BootstrapServerIP string = "127.0.0.1"
+//var BootstrapServerPort int = 5000
 
 //these are for this peer (Read from config file or can be static)
 var NodeIP string = "127.0.0.1"
-var NodeListenPort int = 0
+var NodeListenPort int = 1111
 var NodeNickName string = "randomname"
 var PubSocket *zmq.Socket
 var key = []byte("0")
@@ -122,6 +150,108 @@ func receiveFromPublisher(subSocket *zmq.Socket) {
 
 }
 
+//registers an (IP, Hostname and roomID) with the bootstrap servers
+func insertSelfIntoRoom(selfIP string, selfHostName string, roomID int) int {
+
+	//TODO: read from config file
+	listOfBootstrapNodes, _ := net.LookupHost("autogra.de")
+
+	//TODO: iterate through the entire listOfBootstrapNodes
+	var bootstrapip string = listOfBootstrapNodes[0]
+
+	var url string = "http://" + bootstrapip + ":5000/player/join"
+	msg := addPlayerToRoomJSON{roomID, selfHostName, selfIP}
+	jsonStr, err := json.Marshal(msg)
+	req, err := http.NewRequest("POST", url, bytes.NewBuffer(jsonStr))
+	req.Header.Set("Content-Type", "application/json")
+
+	client := &http.Client{}
+	resp, err := client.Do(req)
+	//log.Println(resp)
+	if err != nil {
+		log.Println("Error while sending POST request to join room")
+		log.Println(err)
+	}
+
+	body, err := ioutil.ReadAll(resp.Body)
+
+	if err != nil {
+		fmt.Println("error in readall")
+		panic(err.Error())
+	}
+
+	fmt.Println(string(body))
+
+	resultjson := status{}
+	json.Unmarshal(body, &resultjson)
+
+	fmt.Println(resultjson.Status)
+	return resultjson.Status
+
+}
+
+//Returns membersList and number of members in the room
+func queryRoom(roomID int) ([5]RoomMember, int) {
+
+	var membersList [5]RoomMember
+
+	//TODO: read from config file
+	listOfBootstrapNodes, _ := net.LookupHost("autogra.de")
+
+	//TODO: iterate through the entire listOfBootstrapNodes
+	var bootstrapip string = listOfBootstrapNodes[0]
+
+	url := "http://" + bootstrapip + ":5000/peers/" + strconv.Itoa(roomID)
+
+	fmt.Println("QueryRoom URL=" + url)
+
+	res, err := http.Get(url)
+
+	if err != nil {
+		fmt.Println(err)
+		panic(err.Error())
+	}
+
+	body, err := ioutil.ReadAll(res.Body)
+
+	if err != nil {
+		fmt.Println("error in readall")
+		panic(err.Error())
+	}
+
+	//var body string = "\"{\"results\":[{\"columns\":[\"room_id\",\"player_name\",\"player_ip\"],\"types\":[\"integer\",\"text\",\"text\"],\"values\":[[1,\"alice\",\"127.0.0.1\"],[1,\"bob\",\"127.0.0.1\"]],\"time\":0.00023971000000000002}]}\""
+
+	stripSlashesBody := strings.Replace(string(body), "\\", "", -1)
+	fmt.Println("stripSlashesBody=" + stripSlashesBody)
+
+	stripDoubleQuotesBody := stripSlashesBody[1 : len(stripSlashesBody)-2]
+	fmt.Println("stripDoubleQuotesBody=" + string(stripDoubleQuotesBody))
+	resultjson := queryResults{}
+	json.Unmarshal([]byte(stripDoubleQuotesBody), &resultjson)
+
+	fmt.Printf("%+v", resultjson)
+	fmt.Println()
+
+	if !strings.Contains(string(body), "values") {
+		fmt.Println("This is the first node in the room")
+		//skip establishing connections, membersList has nothing (all 0s) right now
+		return membersList, 0
+	}
+
+	fmt.Println(len(resultjson.Results[0].Values))
+
+	for i := 0; i < len(resultjson.Results[0].Values); i++ {
+		rm1 := RoomMember{IP: resultjson.Results[0].Values[i][2].(string), ListenPort: 1111, NickName: resultjson.Results[0].Values[i][1].(string)}
+		membersList[i] = rm1
+		fmt.Printf("%+v", rm1)
+		fmt.Println()
+	}
+
+	fmt.Print("membersList from queryRoom=")
+	fmt.Println(membersList)
+	return membersList, len(resultjson.Results[0].Values)
+}
+
 func ExitRoom(roomName string) {
 
 	//TODO: make HTTP request/or connect socket to bootstrap server and get a list of nicknames for a room
@@ -151,17 +281,31 @@ func GetRoomslist(nickname string) string {
 func JoinRoom(nickname string, roomName string) {
 
 	//TODO: make HTTP request/or connect socket to bootstrap server and get a list of (IP,Ports,nicknames)
-	var membersList [5]RoomMember
-	rm1 := RoomMember{IP: "127.0.0.1", ListenPort: 1111, NickName: "bob"}
-	rm2 := RoomMember{IP: "127.0.0.1", ListenPort: 2222, NickName: "alice"}
-	rm3 := RoomMember{IP: "127.0.0.1", ListenPort: 3333, NickName: "daphnie"}
-	membersList[0] = rm1
-	membersList[1] = rm2
-	membersList[2] = rm3
+
+	/*
+		var membersList [5]RoomMember
+
+		rm1 := RoomMember{IP: "127.0.0.1", ListenPort: 1111, NickName: "bob"}
+		rm2 := RoomMember{IP: "127.0.0.1", ListenPort: 2222, NickName: "alice"}
+		rm3 := RoomMember{IP: "127.0.0.1", ListenPort: 3333, NickName: "daphnie"}
+		membersList[0] = rm1
+		membersList[1] = rm2
+		membersList[2] = rm3
+	*/
+
+	roomID, err := strconv.Atoi(roomName)
+
+	if err != nil {
+		log.Println("Invalid room name:" + roomName)
+		return
+	}
+
+	membersList, numMembers := queryRoom(roomID)
+	insertSelfIntoRoom(NodeIP, NodeNickName, roomID)
 
 	fmt.Println("within joinRoom function")
 
-	for i := 0; i < len(membersList); i++ {
+	for i := 0; i < numMembers; i++ {
 
 		fmt.Println("Nick=" + membersList[i].NickName)
 
@@ -288,7 +432,7 @@ func receive(clientsock net.Conn) {
 }
 
 //finds the socket for the nickname, marshals the message into json and sends it out to the client
-func send(msg Message) {
+func Send(msg Message) {
 
 	fmt.Println("Within send")
 
@@ -345,6 +489,10 @@ func SetNickName(nickName string) {
 
 func SetListenPort(listenport int) {
 	NodeListenPort = listenport
+}
+
+func SetIP(nodePublicIP string) {
+	NodeIP = nodePublicIP
 }
 
 func SetEncryptionKey(enckey string) {
