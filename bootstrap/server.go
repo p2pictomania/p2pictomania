@@ -7,22 +7,43 @@ import (
 	"fmt"
 	"io/ioutil"
 	"log"
-	"net"
+	//"net"
 	"net/http"
 	"os"
 	"os/signal"
 	"path/filepath"
 	"strconv"
 	"strings"
+	"sync"
 	"time"
 
+	"github.com/bogdanovich/dns_resolver"
 	sql "github.com/otoolep/rqlite/db"
 	httpd "github.com/otoolep/rqlite/http"
 	"github.com/otoolep/rqlite/store"
+	"github.com/p2pictomania/p2pictomania/connections"
 )
+
+type DNSRecord []struct {
+	Record struct {
+		ID           int         `json:"id"`
+		DomainID     int         `json:"domain_id"`
+		ParentID     interface{} `json:"parent_id"`
+		Name         string      `json:"name"`
+		Content      string      `json:"content"`
+		TTL          int         `json:"ttl"`
+		Prio         interface{} `json:"prio"`
+		RecordType   string      `json:"record_type"`
+		SystemRecord bool        `json:"system_record"`
+		CreatedAt    time.Time   `json:"created_at"`
+		UpdatedAt    time.Time   `json:"updated_at"`
+	} `json:"record"`
+}
 
 // Config object stores the values in the config.json file
 var Config ConfigObject
+
+var Wg sync.WaitGroup
 
 //ConfigObject holds the parsed config.json file
 type ConfigObject struct {
@@ -54,6 +75,10 @@ func getPublicIP() (string, error) {
 	return strings.TrimSpace(string(ip)), nil
 }
 
+func GetPublicIP() (string, error) {
+	return getPublicIP()
+}
+
 func addSelfToDNS() error {
 	url := Config.DnsimpleURL
 	publicIP, err := getPublicIP()
@@ -61,8 +86,9 @@ func addSelfToDNS() error {
 		log.Fatalf("Cannot get public IP: %s", err)
 		return err
 	}
-	var jsonStr = []byte(`{"record": {"name": "", "record_type": "A", "content": "` + publicIP + `", "ttl": 60, "prio": 10}}`)
+	var jsonStr = []byte(`{"record": {"name": "", "record_type": "A", "content": "` + publicIP + `", "ttl": 1, "prio": 10}}`)
 	req, err := http.NewRequest("POST", url, bytes.NewBuffer(jsonStr))
+	req.Close = true
 	req.Header.Set("X-DNSimple-Token", Config.DnsimpleAuthToken)
 	req.Header.Set("Content-Type", "application/json")
 	req.Header.Set("Accept", "application/json")
@@ -96,6 +122,90 @@ func addSelfToDNS() error {
 		return errors.New("DNS record could not be added")
 	}
 	return nil
+}
+
+func DeleteSelfFromDNS() {
+
+	//list using curl  -H 'X-DNSimple-Token: <email>:<token>' \
+	//-H 'Accept: application/json' \
+	//https://api.dnsimple.com/v1/domains/example.com/records
+
+	var listurl string = "https://api.dnsimple.com/v1/domains/autogra.de/records?type=A"
+
+	req, err := http.NewRequest("GET", listurl, nil)
+	req.Close = true
+	req.Header.Set("X-DNSimple-Token", Config.DnsimpleAuthToken)
+	req.Header.Set("Accept", "application/json")
+
+	client := &http.Client{}
+	resp, err := client.Do(req)
+	if err != nil {
+		log.Fatalf("Cannot bind IP to DNS name: %s", err)
+		Wg.Done()
+		return
+	}
+
+	respBody, err := ioutil.ReadAll(resp.Body)
+	defer resp.Body.Close()
+	if err != nil {
+		fmt.Println("error reading response body to A record GET request")
+		Wg.Done()
+		return
+	}
+
+	log.Println("Response Body=" + string(respBody))
+
+	resultjson := DNSRecord{}
+	json.Unmarshal(respBody, &resultjson)
+
+	log.Printf("%+v", resultjson)
+	log.Println(len(resultjson))
+
+	for _, val := range resultjson {
+
+		//if NodeIP is found, get the "id" to delete
+		if val.Record.Content == connections.NodeIP {
+			fmt.Println(val.Record.ID)
+
+			//delete the id with the following call
+			//curl  -H 'X-DNSimple-Token: <email>:<token>' \
+			//-H 'Accept: application/json' \
+			//-H 'Content-Type: application/json' \
+			//-X DELETE \
+			//https: //api.dnsimple.com/v1/domains/example.com/records/2
+
+			var deleteurl string = "https://api.dnsimple.com/v1/domains/autogra.de/records/" + strconv.Itoa(val.Record.ID)
+
+			delReq, err := http.NewRequest("DELETE", deleteurl, nil)
+			delReq.Close = true
+			delReq.Header.Set("X-DNSimple-Token", Config.DnsimpleAuthToken)
+			delReq.Header.Set("Accept", "application/json")
+			delReq.Header.Set("Content-Type", "application/json")
+
+			client := &http.Client{}
+			delResp, err := client.Do(delReq)
+			if err != nil {
+				log.Fatalf("Cannot bind IP to DNS name: %s", err)
+				Wg.Done()
+				return
+			}
+			defer delResp.Body.Close()
+			delRespBody, err := ioutil.ReadAll(delResp.Body)
+
+			if err != nil {
+				log.Println("error reading response body in DeleteSelfFromDNS")
+				Wg.Done()
+				return
+			}
+
+			fmt.Println("Delete Response Body=" + string(delRespBody))
+
+			Wg.Done()
+			//return after deleting 1 matching IP from DNS record
+			return
+		}
+	}
+	Wg.Done()
 }
 
 func dbExists(path string) bool {
@@ -186,6 +296,7 @@ func initTables() {
 	url := "http://localhost:" + strconv.Itoa(DBApiPort) + "/" + "db/execute?pretty&timings"
 	var jsonStr = []byte(query)
 	req, err := http.NewRequest("POST", url, bytes.NewBuffer(jsonStr))
+	req.Close = true
 	if err != nil {
 		log.Fatalf("%s", err)
 	}
@@ -234,7 +345,28 @@ func join(joinAddr, raftAddr string) error {
 // checkForBootstrapNodes checks for existing Bootstrap nodes
 // and returns true if if added itself to the Bootstrap nodes list
 func checkForBootstrapNodes() bool {
-	listOfBootstrapNodes, _ := net.LookupHost(Config.DNS)
+
+	resolver := dns_resolver.New([]string{"ns1.dnsimple.com", "ns2.dnsimple.com"})
+	// In case of i/o timeout
+	resolver.RetryTimes = 5
+
+	bootiplist, err := resolver.LookupHost(Config.DNS)
+
+	if err != nil {
+		log.Println("DNS lookup error for autogra.de in CheckForBootstrapNode")
+		log.Fatal(err.Error())
+	}
+
+	listOfBootstrapNodes := []string{}
+
+	for _, val := range bootiplist {
+		listOfBootstrapNodes = append(listOfBootstrapNodes, val.String())
+	}
+
+	fmt.Print("Bootstrap result=")
+	fmt.Println(listOfBootstrapNodes)
+
+	//listOfBootstrapNodes, _ := net.LookupHost(Config.DNS)
 	log.Printf("Detected %d Bootstrap Server(s) in the network", len(listOfBootstrapNodes))
 	// Case where there are no Bootstrap nodes
 	if len(listOfBootstrapNodes) == 0 {
@@ -246,7 +378,7 @@ func checkForBootstrapNodes() bool {
 		}
 		go setupDB("")
 		return true
-	} else if len(listOfBootstrapNodes) < 3 {
+	} else if len(listOfBootstrapNodes) < 1 {
 		err := addSelfToDNS()
 		if err != nil {
 			log.Println(err)

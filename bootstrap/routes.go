@@ -50,4 +50,10 @@ var routes = Routes{
 		"/player/join",
 		AddPlayerToRoom,
 	},
+	Route{
+		"PlayerLeave",
+		"POST",
+		"/player/leave",
+		DeletePlayerFromRoom,
+	},
 }

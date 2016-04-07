@@ -2,11 +2,13 @@ package connections
 
 import (
 	"bufio"
+	"bytes"
 	"encoding/json"
-	"fmt"
 	zmq "github.com/pebbe/zmq4"
+	"io/ioutil"
 	"log"
 	"net"
+	"net/http"
 	"reflect"
 	"strconv"
 	"strings"
@@ -28,17 +30,43 @@ type RoomMember struct {
 	NickName   string
 }
 
+//TODO: should ideally refer this struct from the boostrap module
+type addPlayerToRoomJSON struct {
+	RoomID         int    `json:"roomID"`
+	PlayerNickName string `json:"nickName"`
+	PlayerIP       string `json:"playerIP"`
+}
+
+//TODO: should ideally refer this struct from the boostrap module
+type deletePlayerFromRoomJSON struct {
+	RoomID         int    `json:"roomID"`
+	PlayerNickName string `json:"nickName"`
+}
+
+type queryResults struct {
+	Results []struct {
+		Columns []string        `json:"columns"`
+		Types   []string        `json:"types"`
+		Values  [][]interface{} `json:"values"`
+		Time    float64         `json:"time"`
+	} `json:"results"`
+}
+
+type status struct {
+	Status int `json:"status"`
+}
+
 //global declarations
 //socketCache
 var Sc SocketCache
 
 //should get this by a DNS query ideally
-var BootstrapServerIP string = "127.0.0.1"
-var BootstrapServerPort int = 5000
+//var BootstrapServerIP string = "127.0.0.1"
+//var BootstrapServerPort int = 5000
 
 //these are for this peer (Read from config file or can be static)
 var NodeIP string = "127.0.0.1"
-var NodeListenPort int = 0
+var NodeListenPort int = 1111
 var NodeNickName string = "randomname"
 var PubSocket *zmq.Socket
 var key = []byte("0")
@@ -102,11 +130,35 @@ type Message struct {
 //TODO: push data to a shared channel
 func receiveFromPublisher(subSocket *zmq.Socket) {
 
-	fmt.Println("Started goreceiveFromPublisher for zmq subscriber socket")
+	log.Println("Started goreceiveFromPublisher for zmq subscriber socket")
 
 	for {
 		data, _ := subSocket.RecvMessage(0)
-		fmt.Print("Message from publisher:")
+
+		//TODO:if socket is valid i.e not deleted, receive the message, else discard it
+		//closing the socket causes panic so this is avoided by checking the validity of the socket in the cache
+		res := Message{}
+
+		if len(data) == 0 {
+			log.Println("Empty message received")
+			continue
+		}
+
+		err := json.Unmarshal([]byte(string(data[0])), &res)
+
+		if err != nil {
+			log.Println("Error while unmarshalling in receive" + err.Error())
+			continue
+		}
+
+		if IsClosedSocket(Sc.v[res.Originator]) == false {
+
+			log.Printf("res=%+v\n", res)
+			//log.Print("Message from publisher:")
+			//log.Println(data)
+		}
+
+		//can print a struct with +v
 
 		//Uncomment the lines below to enable decryption
 		/*
@@ -117,26 +169,224 @@ func receiveFromPublisher(subSocket *zmq.Socket) {
 			}
 			fmt.Println(string(decryptedData))
 		*/
-		fmt.Println(data)
 	}
 
 }
 
-func ExitRoom(roomName string) {
+func deleteSelfFromRoom(selfHostName string, roomID int) int {
+
+	listOfBootstrapNodes, _ := net.LookupHost("autogra.de")
+
+	//TODO: iterate through the entire listOfBootstrapNodes
+
+	var bootstrapip string
+
+	//TODO: iterate through the entire listOfBootstrapNodes
+
+	if len(listOfBootstrapNodes) == 0 {
+		//allocate itself as the bootstrap node.
+		//this safeguards from stale DNS response if the node added itself
+		//to the list of bootstrap servers but is not reflected in the following DNS   		query
+		bootstrapip = NodeIP
+		log.Println("No nodes in DNS response. Self assigning bootstrap node")
+	} else {
+		bootstrapip = listOfBootstrapNodes[0]
+	}
+
+	var url string = "http://" + bootstrapip + ":5000/player/leave"
+	msg := deletePlayerFromRoomJSON{roomID, selfHostName}
+	jsonStr, err := json.Marshal(msg)
+	req, err := http.NewRequest("POST", url, bytes.NewBuffer(jsonStr))
+	req.Close = true
+	req.Header.Set("Content-Type", "application/json")
+
+	client := &http.Client{}
+	resp, err := client.Do(req)
+	defer resp.Body.Close()
+	//log.Println(resp)
+	if err != nil {
+		log.Println("Error while sending POST request to leave room")
+		log.Println(err)
+	}
+
+	body, err := ioutil.ReadAll(resp.Body)
+
+	if err != nil {
+		log.Println("Error from ReadAll in deleteSelfFromRoom:" + err.Error())
+		panic(err.Error())
+	}
+
+	log.Println("Response Body for bootstrap request=" + string(body))
+
+	resultjson := status{}
+	json.Unmarshal(body, &resultjson)
+
+	log.Println("Status response from server in deleteSelfFromRoom:" + strconv.Itoa(resultjson.Status))
+
+	return resultjson.Status
+
+}
+
+//registers an (IP, Hostname and roomID) with the bootstrap servers
+func insertSelfIntoRoom(selfIP string, selfHostName string, roomID int) int {
+
+	//TODO: read from config file
+	listOfBootstrapNodes, _ := net.LookupHost("autogra.de")
+
+	//TODO: iterate through the entire listOfBootstrapNodes
+
+	var bootstrapip string
+
+	//TODO: iterate through the entire listOfBootstrapNodes
+
+	if len(listOfBootstrapNodes) == 0 {
+		//allocate itself as the bootstrap node.
+		//this safeguards from stale DNS response if the node added itself
+		//to the list of bootstrap servers but is not reflected in the following DNS   		query
+		bootstrapip = NodeIP
+		log.Println("No nodes in DNS response. Self assigning bootstrap node")
+	} else {
+		bootstrapip = listOfBootstrapNodes[0]
+	}
+
+	var url string = "http://" + bootstrapip + ":5000/player/join"
+	msg := addPlayerToRoomJSON{roomID, selfHostName, selfIP}
+	jsonStr, err := json.Marshal(msg)
+	req, err := http.NewRequest("POST", url, bytes.NewBuffer(jsonStr))
+	req.Close = true
+	req.Header.Set("Content-Type", "application/json")
+
+	client := &http.Client{}
+	resp, err := client.Do(req)
+	defer resp.Body.Close()
+	//log.Println(resp)
+	if err != nil {
+		log.Println("Error while sending POST request to join room")
+		log.Println(err)
+	}
+
+	body, err := ioutil.ReadAll(resp.Body)
+
+	if err != nil {
+		log.Println("Error from ReadAll in InsertSelfFromRoom:" + err.Error())
+		panic(err.Error())
+	}
+
+	log.Println("Response Body for bootstrap request=" + string(body))
+
+	resultjson := status{}
+	json.Unmarshal(body, &resultjson)
+
+	log.Println("Status response from server in InsertSelfFromRoom:" + strconv.Itoa(resultjson.Status))
+	return resultjson.Status
+
+}
+
+//Returns membersList and number of members in the room
+func queryRoom(roomID int) ([5]RoomMember, int, error) {
+
+	var membersList [5]RoomMember
+
+	//TODO: read autogra.de from config file
+	listOfBootstrapNodes, _ := net.LookupHost("autogra.de")
+
+	var bootstrapip string
+
+	//TODO: iterate through the entire listOfBootstrapNodes
+
+	if len(listOfBootstrapNodes) == 0 {
+		//allocate itself as the bootstrap node.
+		//this safeguards from stale DNS response if the node added itself
+		//to the list of bootstrap servers but is not reflected in the following DNS   		query
+		bootstrapip = NodeIP
+		log.Println("No nodes in DNS response. Self assigning bootstrap node")
+	} else {
+		bootstrapip = listOfBootstrapNodes[0]
+	}
+
+	url := "http://" + bootstrapip + ":5000/peers/" + strconv.Itoa(roomID)
+
+	log.Println("QueryRoom URL=" + url)
+
+	res, err := http.Get(url)
+
+	if err != nil {
+		log.Println("Error in queryRoom get request:" + err.Error())
+
+		if e, okay := err.(net.Error); okay && e.Timeout() {
+			log.Println("Timeout error while querying the room")
+			return membersList, 0, err
+		}
+		panic(err.Error())
+		//return
+	}
+
+	body, err := ioutil.ReadAll(res.Body)
+
+	if err != nil {
+		log.Println("error in readall")
+		panic(err.Error())
+	}
+
+	//var body string = "\"{\"results\":[{\"columns\":[\"room_id\",\"player_name\",\"player_ip\"],\"types\":[\"integer\",\"text\",\"text\"],\"values\":[[1,\"alice\",\"127.0.0.1\"],[1,\"bob\",\"127.0.0.1\"]],\"time\":0.00023971000000000002}]}\""
+
+	// stripSlashesBody := strings.Replace(string(body), "\\", "", -1)
+	// log.Println("stripSlashesBody=" + stripSlashesBody)
+	//
+	// stripDoubleQuotesBody := stripSlashesBody[1 : len(stripSlashesBody)-2]
+	// log.Println("stripDoubleQuotesBody=" + string(stripDoubleQuotesBody))
+	stripDoubleQuotesBody := string(body)
+	resultjson := queryResults{}
+	json.Unmarshal([]byte(stripDoubleQuotesBody), &resultjson)
+
+	log.Printf("%+v", resultjson)
+	log.Println()
+
+	if !strings.Contains(string(body), "values") {
+		log.Println("This is the first node in the room")
+		//skip establishing connections, membersList has nothing (all 0s) right now
+		return membersList, 0, nil
+	}
+
+	//log.Println(len(resultjson.Results[0].Values))
+
+	for i := 0; i < len(resultjson.Results[0].Values); i++ {
+		rm1 := RoomMember{IP: resultjson.Results[0].Values[i][2].(string), ListenPort: 1111, NickName: resultjson.Results[0].Values[i][1].(string)}
+		membersList[i] = rm1
+		log.Printf("%+v", rm1)
+		log.Println()
+	}
+
+	log.Print("membersList from queryRoom=")
+	log.Println(membersList)
+	return membersList, len(resultjson.Results[0].Values), nil
+}
+
+func ExitRoom(roomID int) {
 
 	//TODO: make HTTP request/or connect socket to bootstrap server and get a list of nicknames for a room
 
-	nicknameList := [5]string{"alice", "bob", "charlie", "daphnie", ""}
+	membersList, numMembers, errRoom := queryRoom(roomID)
 
-	for i := 0; i < len(nicknameList); i++ {
-		if IsClosedSocket(Sc.v[nicknameList[i]]) == false {
+	if errRoom != nil {
+		log.Print("Error while querying the room in ExitRoom. Room not exited:" + errRoom.Error())
+		return
+	}
+
+	//nicknameList := [5]string{"alice", "bob", "charlie", "daphnie", ""}
+
+	for i := 0; i < numMembers; i++ {
+		if IsClosedSocket(Sc.v[membersList[i].NickName]) == false {
 			//TODO: Close() causes panic in the receiveFromPublisher
 			//nickSock := Sc.Get(nicknameList[i])
 			//nickSock.Close()
-			delete(Sc.v, nicknameList[i])
-			fmt.Println("ExitRoom: subscriber socket closed for " + nicknameList[i])
+			delete(Sc.v, membersList[i].NickName)
+			log.Println("ExitRoom: subscriber socket closed for " + membersList[i].NickName)
 		}
 	}
+
+	//make POST request to bootstrap server to remove self from the room
+	deleteSelfFromRoom(NodeNickName, roomID)
 }
 
 func GetRoomslist(nickname string) string {
@@ -151,40 +401,61 @@ func GetRoomslist(nickname string) string {
 func JoinRoom(nickname string, roomName string) {
 
 	//TODO: make HTTP request/or connect socket to bootstrap server and get a list of (IP,Ports,nicknames)
-	var membersList [5]RoomMember
-	rm1 := RoomMember{IP: "127.0.0.1", ListenPort: 1111, NickName: "bob"}
-	rm2 := RoomMember{IP: "127.0.0.1", ListenPort: 2222, NickName: "alice"}
-	rm3 := RoomMember{IP: "127.0.0.1", ListenPort: 3333, NickName: "daphnie"}
-	membersList[0] = rm1
-	membersList[1] = rm2
-	membersList[2] = rm3
 
-	fmt.Println("within joinRoom function")
+	/*
+		var membersList [5]RoomMember
 
-	for i := 0; i < len(membersList); i++ {
+		rm1 := RoomMember{IP: "127.0.0.1", ListenPort: 1111, NickName: "bob"}
+		rm2 := RoomMember{IP: "127.0.0.1", ListenPort: 2222, NickName: "alice"}
+		rm3 := RoomMember{IP: "127.0.0.1", ListenPort: 3333, NickName: "daphnie"}
+		membersList[0] = rm1
+		membersList[1] = rm2
+		membersList[2] = rm3
+	*/
 
-		fmt.Println("Nick=" + membersList[i].NickName)
+	roomID, err := strconv.Atoi(roomName)
+
+	if err != nil {
+		log.Println("Invalid room name:" + roomName)
+		return
+	}
+
+	membersList, numMembers, errRoom := queryRoom(roomID)
+
+	if errRoom != nil {
+		log.Print("Error while querying the room. Room not joined:")
+		log.Println(errRoom)
+		return
+	}
+
+	insertSelfIntoRoom(NodeIP, NodeNickName, roomID)
+
+	log.Println("within joinRoom function")
+
+	for i := 0; i < numMembers; i++ {
+
+		log.Println("Nick=" + membersList[i].NickName)
 
 		if membersList[i].ListenPort == 0 {
-			fmt.Println("Skipping empty entry in the membersList")
+			log.Println("Skipping empty entry in the membersList")
 			continue
 		}
 
 		//also check to skip the case of the peer connecting to itself (same nickname)
 		if membersList[i].NickName == NodeNickName {
-			fmt.Println("Skipping connection to itself in the group")
+			log.Println("Skipping connection to itself in the group")
 			continue
 		}
 
 		sock := Sc.Get(membersList[i].NickName)
 		//already have a valid socket for the nickname
 		if IsClosedSocket(sock) == false {
-			fmt.Println("Skipping node as a valid socket is found")
+			log.Println("Skipping node as a valid socket is found")
 			continue
 		}
 
 		//establish a new connection to the room member if we have no valid socket for it
-		fmt.Println("Connecting to node at " + membersList[i].IP + " " + strconv.Itoa(membersList[i].ListenPort))
+		log.Println("Connecting to node at " + membersList[i].IP + " " + strconv.Itoa(membersList[i].ListenPort))
 
 		clientSubSock, _ := zmq.NewSocket(zmq.SUB)
 
@@ -195,7 +466,7 @@ func JoinRoom(nickname string, roomName string) {
 		conn, err := net.Dial("tcp", membersList[i].IP+":"+strconv.Itoa(membersList[i].ListenPort+1))
 
 		if err != nil {
-			fmt.Println("Unable to connect to node at " + membersList[i].IP + " " + strconv.Itoa(membersList[i].ListenPort+1))
+			log.Println("Unable to connect to node at " + membersList[i].IP + " " + strconv.Itoa(membersList[i].ListenPort+1))
 			continue
 		}
 
@@ -203,11 +474,11 @@ func JoinRoom(nickname string, roomName string) {
 		text, err := json.Marshal(msg)
 
 		if err != nil {
-			fmt.Println(err)
+			log.Println("Error while marshalling connect message" + err.Error())
 			continue
 		}
 
-		fmt.Printf("connectMessage=%+v\n", msg)
+		log.Printf("connectMessage=%+v\n", msg)
 		//send connect message
 		conn.Write([]byte(string(text) + "\n"))
 
@@ -230,7 +501,7 @@ func handleMessage(msg Message, clientsock net.Conn) {
 
 		//already have a valid socket for the nickname
 		if IsClosedSocket(sock) == false {
-			fmt.Println("Already have a valid socket for " + msg.Originator)
+			log.Println("Already have a valid socket for " + msg.Originator)
 			return
 		}
 
@@ -238,7 +509,7 @@ func handleMessage(msg Message, clientsock net.Conn) {
 		subSocket.SetSubscribe("")
 		subSocket.Connect("tcp://" + msg.SenderIP + ":" + strconv.Itoa(msg.SenderPort))
 
-		fmt.Println("Connect to publisher at " + msg.SenderIP + ":" + strconv.Itoa(msg.SenderPort))
+		log.Println("Connect to publisher at " + msg.SenderIP + ":" + strconv.Itoa(msg.SenderPort))
 		//save socket
 		Sc.Put(msg.Originator, *subSocket)
 
@@ -256,7 +527,7 @@ func handleMessage(msg Message, clientsock net.Conn) {
 */
 func receive(clientsock net.Conn) {
 
-	fmt.Println("Starting receive goroutine")
+	log.Println("Starting receive goroutine")
 
 	for {
 
@@ -264,22 +535,22 @@ func receive(clientsock net.Conn) {
 		message, err := bufio.NewReader(clientsock).ReadString('\n')
 
 		if err != nil {
-			fmt.Println("Socket error.")
+			log.Println("Socket error in receive.")
 			clientsock.Close()
 			break
 		}
 
-		fmt.Print("Message received:", string(message))
+		log.Print("Message received:", string(message))
 
 		res := Message{}
 		err = json.Unmarshal([]byte(string(message)), &res)
 
 		if err != nil {
-			fmt.Println(err)
+			log.Println("Error while unmarshalling in receive: " + err.Error())
 		}
 
 		//can print a struct with +v
-		fmt.Printf("res=%+v\n", res)
+		log.Printf("res=%+v\n", res)
 
 		//handles connection related message. Pass on other messages to the layer above
 		handleMessage(res, clientsock)
@@ -288,14 +559,14 @@ func receive(clientsock net.Conn) {
 }
 
 //finds the socket for the nickname, marshals the message into json and sends it out to the client
-func send(msg Message) {
+func Send(msg Message) {
 
-	fmt.Println("Within send")
+	log.Println("Within send")
 
 	text, err := json.Marshal(msg)
 
 	if err != nil {
-		fmt.Println(err)
+		log.Println("Error while marshalling in send: " + err.Error())
 		return
 	}
 
@@ -345,6 +616,10 @@ func SetNickName(nickName string) {
 
 func SetListenPort(listenport int) {
 	NodeListenPort = listenport
+}
+
+func SetIP(nodePublicIP string) {
+	NodeIP = nodePublicIP
 }
 
 func SetEncryptionKey(enckey string) {
