@@ -7,7 +7,7 @@ import (
 	"fmt"
 	"io/ioutil"
 	"log"
-	"net"
+	//"net"
 	"net/http"
 	"os"
 	"os/signal"
@@ -16,6 +16,7 @@ import (
 	"strings"
 	"time"
 
+	"github.com/bogdanovich/dns_resolver"
 	sql "github.com/otoolep/rqlite/db"
 	httpd "github.com/otoolep/rqlite/http"
 	"github.com/otoolep/rqlite/store"
@@ -238,7 +239,28 @@ func join(joinAddr, raftAddr string) error {
 // checkForBootstrapNodes checks for existing Bootstrap nodes
 // and returns true if if added itself to the Bootstrap nodes list
 func checkForBootstrapNodes() bool {
-	listOfBootstrapNodes, _ := net.LookupHost(Config.DNS)
+
+	resolver := dns_resolver.New([]string{"ns1.dnsimple.com", "ns2.dnsimple.com"})
+	// In case of i/o timeout
+	resolver.RetryTimes = 5
+
+	bootiplist, err := resolver.LookupHost(Config.DNS)
+
+	if err != nil {
+		log.Println("DNS lookup error for autogra.de in CheckForBootstrapNode")
+		log.Fatal(err.Error())
+	}
+
+	listOfBootstrapNodes := []string{}
+
+	for _, val := range bootiplist {
+		listOfBootstrapNodes = append(listOfBootstrapNodes, val.String())
+	}
+
+	fmt.Print("Bootstrap result=")
+	fmt.Println(listOfBootstrapNodes)
+
+	//listOfBootstrapNodes, _ := net.LookupHost(Config.DNS)
 	log.Printf("Detected %d Bootstrap Server(s) in the network", len(listOfBootstrapNodes))
 	// Case where there are no Bootstrap nodes
 	if len(listOfBootstrapNodes) == 0 {
