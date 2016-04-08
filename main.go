@@ -13,27 +13,34 @@ import (
 
 func main() {
 
-	if len(os.Args) < 3 {
-		log.Println("Usage: ./p2pictomania portno nodename")
+	if len(os.Args) < 2 {
+		log.Println("Usage: ./p2pictomania nodename")
 		return
 	}
 
-	tempPort, err := strconv.Atoi(os.Args[1])
+	/*
+		tempPort, err := strconv.Atoi(os.Args[1])
 
-	if err != nil {
-		log.Println("Usage: ./p2pictomania portno nodename")
-		return
-	}
+		if err != nil {
+			log.Println("Usage: ./p2pictomania portno nodename")
+			return
+		}
+	*/
 
-	tempName := os.Args[2]
+	tempName := os.Args[1]
 
 	//set global NodeNickName, NodeListenPort and EncryptionKey
 	selfIP, err := bootstrap.GetPublicIP()
 
 	if err != nil {
 		log.Println("Error while fetching public IP of node")
-		panic(err.Error())
+		log.Println("Please restart application")
+		os.Exit(0)
+		//panic(err.Error())
 	}
+
+	//Fixed listening port for every node
+	var tempPort int = 1111
 
 	connections.SetIP(selfIP)
 	connections.SetListenPort(tempPort)

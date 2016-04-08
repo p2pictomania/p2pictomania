@@ -4,7 +4,6 @@ import (
 	"bufio"
 	"bytes"
 	"encoding/json"
-	"fmt"
 	zmq "github.com/pebbe/zmq4"
 	"io/ioutil"
 	"log"
@@ -124,11 +123,11 @@ type Message struct {
 //TODO: push data to a shared channel
 func receiveFromPublisher(subSocket *zmq.Socket) {
 
-	fmt.Println("Started goreceiveFromPublisher for zmq subscriber socket")
+	log.Println("Started goreceiveFromPublisher for zmq subscriber socket")
 
 	for {
 		data, _ := subSocket.RecvMessage(0)
-		fmt.Print("Message from publisher:")
+		log.Print("Message from publisher:")
 
 		//Uncomment the lines below to enable decryption
 		/*
@@ -139,7 +138,7 @@ func receiveFromPublisher(subSocket *zmq.Socket) {
 			}
 			fmt.Println(string(decryptedData))
 		*/
-		fmt.Println(data)
+		log.Println(data)
 	}
 
 }
@@ -170,16 +169,16 @@ func insertSelfIntoRoom(selfIP string, selfHostName string, roomID int) int {
 	body, err := ioutil.ReadAll(resp.Body)
 
 	if err != nil {
-		fmt.Println("error in readall")
+		log.Println("Error from ReadAll in InsertSelfFromRoom:" + err.Error())
 		panic(err.Error())
 	}
 
-	fmt.Println(string(body))
+	log.Println("Response Body for bootstrap request=" + string(body))
 
 	resultjson := status{}
 	json.Unmarshal(body, &resultjson)
 
-	fmt.Println(resultjson.Status)
+	log.Println("Status response from server in InsertSelfFromRoom:" + strconv.Itoa(resultjson.Status))
 	return resultjson.Status
 
 }
@@ -208,15 +207,15 @@ func queryRoom(roomID int) ([5]RoomMember, int, error) {
 
 	url := "http://" + bootstrapip + ":5000/peers/" + strconv.Itoa(roomID)
 
-	fmt.Println("QueryRoom URL=" + url)
+	log.Println("QueryRoom URL=" + url)
 
 	res, err := http.Get(url)
 
 	if err != nil {
-		fmt.Println(err)
+		log.Println("Error in queryRoom get request:" + err.Error())
 
 		if e, okay := err.(net.Error); okay && e.Timeout() {
-			fmt.Println("Timeout error while querying the room")
+			log.Println("Timeout error while querying the room")
 			return membersList, 0, err
 		}
 
@@ -226,40 +225,40 @@ func queryRoom(roomID int) ([5]RoomMember, int, error) {
 	body, err := ioutil.ReadAll(res.Body)
 
 	if err != nil {
-		fmt.Println("error in readall")
+		log.Println("error in readall")
 		panic(err.Error())
 	}
 
 	//var body string = "\"{\"results\":[{\"columns\":[\"room_id\",\"player_name\",\"player_ip\"],\"types\":[\"integer\",\"text\",\"text\"],\"values\":[[1,\"alice\",\"127.0.0.1\"],[1,\"bob\",\"127.0.0.1\"]],\"time\":0.00023971000000000002}]}\""
 
 	stripSlashesBody := strings.Replace(string(body), "\\", "", -1)
-	fmt.Println("stripSlashesBody=" + stripSlashesBody)
+	log.Println("stripSlashesBody=" + stripSlashesBody)
 
 	stripDoubleQuotesBody := stripSlashesBody[1 : len(stripSlashesBody)-2]
-	fmt.Println("stripDoubleQuotesBody=" + string(stripDoubleQuotesBody))
+	log.Println("stripDoubleQuotesBody=" + string(stripDoubleQuotesBody))
 	resultjson := queryResults{}
 	json.Unmarshal([]byte(stripDoubleQuotesBody), &resultjson)
 
-	fmt.Printf("%+v", resultjson)
-	fmt.Println()
+	log.Printf("%+v", resultjson)
+	log.Println()
 
 	if !strings.Contains(string(body), "values") {
-		fmt.Println("This is the first node in the room")
+		log.Println("This is the first node in the room")
 		//skip establishing connections, membersList has nothing (all 0s) right now
 		return membersList, 0, nil
 	}
 
-	fmt.Println(len(resultjson.Results[0].Values))
+	//log.Println(len(resultjson.Results[0].Values))
 
 	for i := 0; i < len(resultjson.Results[0].Values); i++ {
 		rm1 := RoomMember{IP: resultjson.Results[0].Values[i][2].(string), ListenPort: 1111, NickName: resultjson.Results[0].Values[i][1].(string)}
 		membersList[i] = rm1
-		fmt.Printf("%+v", rm1)
-		fmt.Println()
+		log.Printf("%+v", rm1)
+		log.Println()
 	}
 
-	fmt.Print("membersList from queryRoom=")
-	fmt.Println(membersList)
+	log.Print("membersList from queryRoom=")
+	log.Println(membersList)
 	return membersList, len(resultjson.Results[0].Values), nil
 }
 
@@ -275,7 +274,7 @@ func ExitRoom(roomName string) {
 			//nickSock := Sc.Get(nicknameList[i])
 			//nickSock.Close()
 			delete(Sc.v, nicknameList[i])
-			fmt.Println("ExitRoom: subscriber socket closed for " + nicknameList[i])
+			log.Println("ExitRoom: subscriber socket closed for " + nicknameList[i])
 		}
 	}
 }
@@ -321,32 +320,32 @@ func JoinRoom(nickname string, roomName string) {
 
 	insertSelfIntoRoom(NodeIP, NodeNickName, roomID)
 
-	fmt.Println("within joinRoom function")
+	log.Println("within joinRoom function")
 
 	for i := 0; i < numMembers; i++ {
 
-		fmt.Println("Nick=" + membersList[i].NickName)
+		log.Println("Nick=" + membersList[i].NickName)
 
 		if membersList[i].ListenPort == 0 {
-			fmt.Println("Skipping empty entry in the membersList")
+			log.Println("Skipping empty entry in the membersList")
 			continue
 		}
 
 		//also check to skip the case of the peer connecting to itself (same nickname)
 		if membersList[i].NickName == NodeNickName {
-			fmt.Println("Skipping connection to itself in the group")
+			log.Println("Skipping connection to itself in the group")
 			continue
 		}
 
 		sock := Sc.Get(membersList[i].NickName)
 		//already have a valid socket for the nickname
 		if IsClosedSocket(sock) == false {
-			fmt.Println("Skipping node as a valid socket is found")
+			log.Println("Skipping node as a valid socket is found")
 			continue
 		}
 
 		//establish a new connection to the room member if we have no valid socket for it
-		fmt.Println("Connecting to node at " + membersList[i].IP + " " + strconv.Itoa(membersList[i].ListenPort))
+		log.Println("Connecting to node at " + membersList[i].IP + " " + strconv.Itoa(membersList[i].ListenPort))
 
 		clientSubSock, _ := zmq.NewSocket(zmq.SUB)
 
@@ -357,7 +356,7 @@ func JoinRoom(nickname string, roomName string) {
 		conn, err := net.Dial("tcp", membersList[i].IP+":"+strconv.Itoa(membersList[i].ListenPort+1))
 
 		if err != nil {
-			fmt.Println("Unable to connect to node at " + membersList[i].IP + " " + strconv.Itoa(membersList[i].ListenPort+1))
+			log.Println("Unable to connect to node at " + membersList[i].IP + " " + strconv.Itoa(membersList[i].ListenPort+1))
 			continue
 		}
 
@@ -365,11 +364,11 @@ func JoinRoom(nickname string, roomName string) {
 		text, err := json.Marshal(msg)
 
 		if err != nil {
-			fmt.Println(err)
+			log.Println("Error while marshalling connect message" + err.Error())
 			continue
 		}
 
-		fmt.Printf("connectMessage=%+v\n", msg)
+		log.Printf("connectMessage=%+v\n", msg)
 		//send connect message
 		conn.Write([]byte(string(text) + "\n"))
 
@@ -392,7 +391,7 @@ func handleMessage(msg Message, clientsock net.Conn) {
 
 		//already have a valid socket for the nickname
 		if IsClosedSocket(sock) == false {
-			fmt.Println("Already have a valid socket for " + msg.Originator)
+			log.Println("Already have a valid socket for " + msg.Originator)
 			return
 		}
 
@@ -400,7 +399,7 @@ func handleMessage(msg Message, clientsock net.Conn) {
 		subSocket.SetSubscribe("")
 		subSocket.Connect("tcp://" + msg.SenderIP + ":" + strconv.Itoa(msg.SenderPort))
 
-		fmt.Println("Connect to publisher at " + msg.SenderIP + ":" + strconv.Itoa(msg.SenderPort))
+		log.Println("Connect to publisher at " + msg.SenderIP + ":" + strconv.Itoa(msg.SenderPort))
 		//save socket
 		Sc.Put(msg.Originator, *subSocket)
 
@@ -418,7 +417,7 @@ func handleMessage(msg Message, clientsock net.Conn) {
 */
 func receive(clientsock net.Conn) {
 
-	fmt.Println("Starting receive goroutine")
+	log.Println("Starting receive goroutine")
 
 	for {
 
@@ -426,22 +425,22 @@ func receive(clientsock net.Conn) {
 		message, err := bufio.NewReader(clientsock).ReadString('\n')
 
 		if err != nil {
-			fmt.Println("Socket error.")
+			log.Println("Socket error in receive.")
 			clientsock.Close()
 			break
 		}
 
-		fmt.Print("Message received:", string(message))
+		log.Print("Message received:", string(message))
 
 		res := Message{}
 		err = json.Unmarshal([]byte(string(message)), &res)
 
 		if err != nil {
-			fmt.Println(err)
+			log.Println("Error while unmarshalling in receive: " + err.Error())
 		}
 
 		//can print a struct with +v
-		fmt.Printf("res=%+v\n", res)
+		log.Printf("res=%+v\n", res)
 
 		//handles connection related message. Pass on other messages to the layer above
 		handleMessage(res, clientsock)
@@ -452,12 +451,12 @@ func receive(clientsock net.Conn) {
 //finds the socket for the nickname, marshals the message into json and sends it out to the client
 func Send(msg Message) {
 
-	fmt.Println("Within send")
+	log.Println("Within send")
 
 	text, err := json.Marshal(msg)
 
 	if err != nil {
-		fmt.Println(err)
+		log.Println("Error while marshalling in send: " + err.Error())
 		return
 	}
 
