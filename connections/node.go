@@ -185,15 +185,26 @@ func insertSelfIntoRoom(selfIP string, selfHostName string, roomID int) int {
 }
 
 //Returns membersList and number of members in the room
-func queryRoom(roomID int) ([5]RoomMember, int) {
+func queryRoom(roomID int) ([5]RoomMember, int, error) {
 
 	var membersList [5]RoomMember
 
-	//TODO: read from config file
+	//TODO: read autogra.de from config file
 	listOfBootstrapNodes, _ := net.LookupHost("autogra.de")
 
+	var bootstrapip string
+
 	//TODO: iterate through the entire listOfBootstrapNodes
-	var bootstrapip string = listOfBootstrapNodes[0]
+
+	if len(listOfBootstrapNodes) == 0 {
+		//allocate itself as the bootstrap node.
+		//this safeguards from stale DNS response if the node added itself
+		//to the list of bootstrap servers but is not reflected in the following DNS   		query
+		bootstrapip = NodeIP
+		log.Println("No nodes in DNS response. Self assigning bootstrap node")
+	} else {
+		bootstrapip = listOfBootstrapNodes[0]
+	}
 
 	url := "http://" + bootstrapip + ":5000/peers/" + strconv.Itoa(roomID)
 
@@ -203,6 +214,12 @@ func queryRoom(roomID int) ([5]RoomMember, int) {
 
 	if err != nil {
 		fmt.Println(err)
+
+		if e, okay := err.(net.Error); okay && e.Timeout() {
+			fmt.Println("Timeout error while querying the room")
+			return membersList, 0, err
+		}
+
 		panic(err.Error())
 	}
 
@@ -229,7 +246,7 @@ func queryRoom(roomID int) ([5]RoomMember, int) {
 	if !strings.Contains(string(body), "values") {
 		fmt.Println("This is the first node in the room")
 		//skip establishing connections, membersList has nothing (all 0s) right now
-		return membersList, 0
+		return membersList, 0, nil
 	}
 
 	fmt.Println(len(resultjson.Results[0].Values))
@@ -243,7 +260,7 @@ func queryRoom(roomID int) ([5]RoomMember, int) {
 
 	fmt.Print("membersList from queryRoom=")
 	fmt.Println(membersList)
-	return membersList, len(resultjson.Results[0].Values)
+	return membersList, len(resultjson.Results[0].Values), nil
 }
 
 func ExitRoom(roomName string) {
@@ -294,7 +311,14 @@ func JoinRoom(nickname string, roomName string) {
 		return
 	}
 
-	membersList, numMembers := queryRoom(roomID)
+	membersList, numMembers, errRoom := queryRoom(roomID)
+
+	if errRoom != nil {
+		log.Print("Error while querying the room. Room not joined:")
+		log.Println(errRoom)
+		return
+	}
+
 	insertSelfIntoRoom(NodeIP, NodeNickName, roomID)
 
 	fmt.Println("within joinRoom function")
