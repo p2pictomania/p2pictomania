@@ -66,7 +66,7 @@ func addSelfToDNS() error {
 		log.Fatalf("Cannot get public IP: %s", err)
 		return err
 	}
-	var jsonStr = []byte(`{"record": {"name": "", "record_type": "A", "content": "` + publicIP + `", "ttl": 2, "prio": 10}}`)
+	var jsonStr = []byte(`{"record": {"name": "", "record_type": "A", "content": "` + publicIP + `", "ttl": 1, "prio": 10}}`)
 	req, err := http.NewRequest("POST", url, bytes.NewBuffer(jsonStr))
 	req.Header.Set("X-DNSimple-Token", Config.DnsimpleAuthToken)
 	req.Header.Set("Content-Type", "application/json")
