@@ -57,7 +57,14 @@ func main() {
 		switch cmd {
 
 		case "join\n":
-			connections.JoinRoom(connections.NodeNickName, "1")
+			var input int
+			fmt.Println("Enter roomNumber:")
+			_, err := fmt.Scanf("%d", &input)
+			if err != nil {
+				fmt.Println("Invalid roomNumber")
+				continue
+			}
+			connections.JoinRoom(connections.NodeNickName, strconv.Itoa(input))
 
 		case "send\n":
 			fmt.Println("Enter data:")
