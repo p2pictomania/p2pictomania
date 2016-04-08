@@ -58,7 +58,7 @@ func main() {
 
 		case "join\n":
 			var input int
-			fmt.Println("Enter roomNumber:")
+			fmt.Print("Enter roomNumber:")
 			_, err := fmt.Scanf("%d", &input)
 			if err != nil {
 				fmt.Println("Invalid roomNumber")
