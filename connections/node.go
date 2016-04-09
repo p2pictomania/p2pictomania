@@ -4,6 +4,7 @@ import (
 	"bufio"
 	"bytes"
 	"encoding/json"
+	"github.com/p2pictomania/p2pictomania/bootstrap"
 	zmq "github.com/pebbe/zmq4"
 	"io/ioutil"
 	"log"
@@ -175,22 +176,28 @@ func receiveFromPublisher(subSocket *zmq.Socket) {
 
 func deleteSelfFromRoom(selfHostName string, roomID int) int {
 
+	// listOfBootstrapNodes, _ := net.LookupHost("autogra.de")
+	//
+	// //TODO: iterate through the entire listOfBootstrapNodes
+	//
+	// var bootstrapip string
+	//
+	// //TODO: iterate through the entire listOfBootstrapNodes
+	//
+	// if len(listOfBootstrapNodes) == 0 {
+	// 	//allocate itself as the bootstrap node.
+	// 	//this safeguards from stale DNS response if the node added itself
+	// 	//to the list of bootstrap servers but is not reflected in the following DNS   		query
+	// 	bootstrapip = NodeIP
+	// 	log.Println("No nodes in DNS response. Self assigning bootstrap node")
+	// } else {
+	// 	bootstrapip = listOfBootstrapNodes[0]
+	// }
+
 	listOfBootstrapNodes, _ := net.LookupHost("autogra.de")
-
-	//TODO: iterate through the entire listOfBootstrapNodes
-
-	var bootstrapip string
-
-	//TODO: iterate through the entire listOfBootstrapNodes
-
-	if len(listOfBootstrapNodes) == 0 {
-		//allocate itself as the bootstrap node.
-		//this safeguards from stale DNS response if the node added itself
-		//to the list of bootstrap servers but is not reflected in the following DNS   		query
-		bootstrapip = NodeIP
-		log.Println("No nodes in DNS response. Self assigning bootstrap node")
-	} else {
-		bootstrapip = listOfBootstrapNodes[0]
+	bootstrapip, err := bootstrap.GetLeaderIP(listOfBootstrapNodes)
+	if err != nil {
+		return http.StatusInternalServerError
 	}
 
 	var url string = "http://" + bootstrapip + ":5000/player/leave"
@@ -230,23 +237,29 @@ func deleteSelfFromRoom(selfHostName string, roomID int) int {
 //registers an (IP, Hostname and roomID) with the bootstrap servers
 func insertSelfIntoRoom(selfIP string, selfHostName string, roomID int) int {
 
-	//TODO: read from config file
+	// //TODO: read from config file
+	// listOfBootstrapNodes, _ := net.LookupHost("autogra.de")
+	//
+	// //TODO: iterate through the entire listOfBootstrapNodes
+	//
+	// var bootstrapip string
+	//
+	// //TODO: iterate through the entire listOfBootstrapNodes
+	//
+	// if len(listOfBootstrapNodes) == 0 {
+	// 	//allocate itself as the bootstrap node.
+	// 	//this safeguards from stale DNS response if the node added itself
+	// 	//to the list of bootstrap servers but is not reflected in the following DNS   		query
+	// 	bootstrapip = NodeIP
+	// 	log.Println("No nodes in DNS response. Self assigning bootstrap node")
+	// } else {
+	// 	bootstrapip = listOfBootstrapNodes[0]
+	// }
+
 	listOfBootstrapNodes, _ := net.LookupHost("autogra.de")
-
-	//TODO: iterate through the entire listOfBootstrapNodes
-
-	var bootstrapip string
-
-	//TODO: iterate through the entire listOfBootstrapNodes
-
-	if len(listOfBootstrapNodes) == 0 {
-		//allocate itself as the bootstrap node.
-		//this safeguards from stale DNS response if the node added itself
-		//to the list of bootstrap servers but is not reflected in the following DNS   		query
-		bootstrapip = NodeIP
-		log.Println("No nodes in DNS response. Self assigning bootstrap node")
-	} else {
-		bootstrapip = listOfBootstrapNodes[0]
+	bootstrapip, err := bootstrap.GetLeaderIP(listOfBootstrapNodes)
+	if err != nil {
+		return http.StatusInternalServerError
 	}
 
 	var url string = "http://" + bootstrapip + ":5000/player/join"
@@ -287,21 +300,27 @@ func queryRoom(roomID int) ([5]RoomMember, int, error) {
 
 	var membersList [5]RoomMember
 
-	//TODO: read autogra.de from config file
+	// //TODO: read autogra.de from config file
+	// listOfBootstrapNodes, _ := net.LookupHost("autogra.de")
+	//
+	// var bootstrapip string
+	//
+	// //TODO: iterate through the entire listOfBootstrapNodes
+	//
+	// if len(listOfBootstrapNodes) == 0 {
+	// 	//allocate itself as the bootstrap node.
+	// 	//this safeguards from stale DNS response if the node added itself
+	// 	//to the list of bootstrap servers but is not reflected in the following DNS   		query
+	// 	bootstrapip = NodeIP
+	// 	log.Println("No nodes in DNS response. Self assigning bootstrap node")
+	// } else {
+	// 	bootstrapip = listOfBootstrapNodes[0]
+	// }
+
 	listOfBootstrapNodes, _ := net.LookupHost("autogra.de")
-
-	var bootstrapip string
-
-	//TODO: iterate through the entire listOfBootstrapNodes
-
-	if len(listOfBootstrapNodes) == 0 {
-		//allocate itself as the bootstrap node.
-		//this safeguards from stale DNS response if the node added itself
-		//to the list of bootstrap servers but is not reflected in the following DNS   		query
-		bootstrapip = NodeIP
-		log.Println("No nodes in DNS response. Self assigning bootstrap node")
-	} else {
-		bootstrapip = listOfBootstrapNodes[0]
+	bootstrapip, err := bootstrap.GetLeaderIP(listOfBootstrapNodes)
+	if err != nil {
+		return memberList, 0, errors.New("No Leader found to execute query")
 	}
 
 	url := "http://" + bootstrapip + ":5000/peers/" + strconv.Itoa(roomID)
