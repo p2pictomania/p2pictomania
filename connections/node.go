@@ -330,11 +330,12 @@ func queryRoom(roomID int) ([5]RoomMember, int, error) {
 
 	//var body string = "\"{\"results\":[{\"columns\":[\"room_id\",\"player_name\",\"player_ip\"],\"types\":[\"integer\",\"text\",\"text\"],\"values\":[[1,\"alice\",\"127.0.0.1\"],[1,\"bob\",\"127.0.0.1\"]],\"time\":0.00023971000000000002}]}\""
 
-	stripSlashesBody := strings.Replace(string(body), "\\", "", -1)
-	log.Println("stripSlashesBody=" + stripSlashesBody)
-
-	stripDoubleQuotesBody := stripSlashesBody[1 : len(stripSlashesBody)-2]
-	log.Println("stripDoubleQuotesBody=" + string(stripDoubleQuotesBody))
+	// stripSlashesBody := strings.Replace(string(body), "\\", "", -1)
+	// log.Println("stripSlashesBody=" + stripSlashesBody)
+	//
+	// stripDoubleQuotesBody := stripSlashesBody[1 : len(stripSlashesBody)-2]
+	// log.Println("stripDoubleQuotesBody=" + string(stripDoubleQuotesBody))
+	stripDoubleQuotesBody := string(body)
 	resultjson := queryResults{}
 	json.Unmarshal([]byte(stripDoubleQuotesBody), &resultjson)
 
