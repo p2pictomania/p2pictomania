@@ -30,12 +30,14 @@ type RoomMember struct {
 	NickName   string
 }
 
+//TODO: should ideally refer this struct from the boostrap module
 type addPlayerToRoomJSON struct {
 	RoomID         int    `json:"roomID"`
 	PlayerNickName string `json:"nickName"`
 	PlayerIP       string `json:"playerIP"`
 }
 
+//TODO: should ideally refer this struct from the boostrap module
 type deletePlayerFromRoomJSON struct {
 	RoomID         int    `json:"roomID"`
 	PlayerNickName string `json:"nickName"`
@@ -310,8 +312,8 @@ func queryRoom(roomID int) ([5]RoomMember, int, error) {
 			log.Println("Timeout error while querying the room")
 			return membersList, 0, err
 		}
-
 		panic(err.Error())
+		//return
 	}
 
 	body, err := ioutil.ReadAll(res.Body)
