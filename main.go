@@ -54,6 +54,7 @@ func main() {
 	connections.SetListenPort(tempPort)
 	connections.SetNickName(tempName)
 	connections.SetEncryptionKey("djreglhvbcnfqstuwxymkpioaz456789")
+	connections.SetCurrentRoom(-1)
 
 	log.Println("Node info: Name=" + connections.NodeNickName + " IP=" + connections.NodeIP + " ListenPort=" + strconv.Itoa(connections.NodeListenPort))
 
@@ -99,7 +100,9 @@ func main() {
 		case "send\n":
 			fmt.Println("Enter data:")
 			content, _ := reader.ReadString('\n')
-			msg := connections.Message{SenderIP: connections.NodeIP, SenderPort: connections.NodeListenPort, Kind: "Data", Originator: connections.NodeNickName, Data: content}
+			currentgroup := strconv.Itoa(connections.NodeRoomID)
+			//msg := connections.Message{SenderIP: connections.NodeIP, SenderPort: connections.NodeListenPort, Kind: "Data", Originator: connections.NodeNickName, Data: content}
+			msg := connections.Message{SenderIP: connections.NodeIP, SenderPort: connections.NodeListenPort, Groupname: currentgroup, Kind: "Data", Originator: connections.NodeNickName, Data: content}
 			connections.Send(msg)
 
 		case "quit\n":

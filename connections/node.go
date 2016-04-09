@@ -71,6 +71,7 @@ var NodeListenPort int = 1111
 var NodeNickName string = "randomname"
 var PubSocket *zmq.Socket
 var key = []byte("0")
+var NodeRoomID int = -1
 
 func IsClosedSocket(sock zmq.Socket) bool {
 	return strings.Contains(sock.String(), "CLOSED")
@@ -152,11 +153,19 @@ func receiveFromPublisher(subSocket *zmq.Socket) {
 			continue
 		}
 
-		if IsClosedSocket(Sc.v[res.Originator]) == false {
+		/*
+			if IsClosedSocket(Sc.v[res.Originator]) == false {
 
+				log.Printf("res=%+v\n", res)
+				//log.Print("Message from publisher:")
+				//log.Println(data)
+			}
+		*/
+
+		currentroom := strconv.Itoa(NodeRoomID)
+
+		if res.Groupname == currentroom {
 			log.Printf("res=%+v\n", res)
-			//log.Print("Message from publisher:")
-			//log.Println(data)
 		}
 
 		//can print a struct with +v
@@ -393,19 +402,26 @@ func ExitRoom(roomID int) {
 	}
 
 	//nicknameList := [5]string{"alice", "bob", "charlie", "daphnie", ""}
-
-	for i := 0; i < numMembers; i++ {
-		if IsClosedSocket(Sc.v[membersList[i].NickName]) == false {
-			//TODO: Close() causes panic in the receiveFromPublisher
-			//nickSock := Sc.Get(nicknameList[i])
-			//nickSock.Close()
-			delete(Sc.v, membersList[i].NickName)
-			log.Println("ExitRoom: subscriber socket closed for " + membersList[i].NickName)
+	_ = membersList
+	_ = numMembers
+	/*
+		for i := 0; i < numMembers; i++ {
+			if IsClosedSocket(Sc.v[membersList[i].NickName]) == false {
+				//TODO: Close() causes panic in the receiveFromPublisher
+				//nickSock := Sc.Get(nicknameList[i])
+				//nickSock.Close()
+				delete(Sc.v, membersList[i].NickName)
+				log.Println("ExitRoom: subscriber socket closed for " + membersList[i].NickName)
+			}
 		}
-	}
+	*/
 
 	//make POST request to bootstrap server to remove self from the room
+	//TODO: check return code for error. set roomID to -1 only when the deleteSelfFromRoom succeeds
 	deleteSelfFromRoom(NodeNickName, roomID)
+
+	SetCurrentRoom(-1)
+
 }
 
 func GetRoomslist(nickname string) string {
@@ -507,6 +523,8 @@ func JoinRoom(nickname string, roomName string) {
 		go receiveFromPublisher(clientSubSock)
 
 	}
+
+	SetCurrentRoom(roomID)
 }
 
 //TODO: ensure that this function returns back (should not block due to anything e.g. channels, sockets etc) since this is called as part of receive
@@ -643,4 +661,8 @@ func SetIP(nodePublicIP string) {
 
 func SetEncryptionKey(enckey string) {
 	key = []byte(enckey)
+}
+
+func SetCurrentRoom(RoomID int) {
+	NodeRoomID = RoomID
 }
