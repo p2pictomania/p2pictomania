@@ -5,20 +5,25 @@ import (
 	"encoding/json"
 	"errors"
 	"fmt"
+	"github.com/bogdanovich/dns_resolver"
+	"github.com/gorilla/mux"
 	"io/ioutil"
 	"log"
-	"net"
+	//"net"
 	"net/http"
 	"net/url"
 	"strconv"
-
-	"github.com/gorilla/mux"
 )
 
 type addPlayerToRoomJSON struct {
 	RoomID         int    `json:"roomID"`
 	PlayerNickName string `json:"nickName"`
 	PlayerIP       string `json:"playerIP"`
+}
+
+type deletePlayerFromRoomJSON struct {
+	RoomID         int    `json:"roomID"`
+	PlayerNickName string `json:"nickName"`
 }
 
 //Index handler handles the landing page of the UI
@@ -38,7 +43,7 @@ func GetPeersForRoom(w http.ResponseWriter, r *http.Request) {
 		http.Error(w, "Couldn't fetch players in room", http.StatusInternalServerError)
 		return
 	}
-	json.NewEncoder(w).Encode(string(result))
+	json.NewEncoder(w).Encode(result)
 }
 
 // AddPlayerToRoom handler adds the given player to a given room in the db
@@ -62,7 +67,32 @@ func AddPlayerToRoom(w http.ResponseWriter, r *http.Request) {
 	json.NewEncoder(w).Encode(map[string]int{"status": http.StatusOK})
 }
 
-func sqlQuery(query string) ([]byte, error) {
+func DeletePlayerFromRoom(w http.ResponseWriter, r *http.Request) {
+
+	decoder := json.NewDecoder(r.Body)
+	var j deletePlayerFromRoomJSON
+	err := decoder.Decode(&j)
+
+	if err != nil {
+		log.Println("Could not delete player from room")
+		http.Error(w, "Could not delete player from room", http.StatusInternalServerError)
+		return
+	}
+
+	query := "DELETE from player_room_mapping where room_id=" + strconv.Itoa(j.RoomID) + " and player_name= \"" + j.PlayerNickName + "\";"
+	log.Println("Delete query:" + string(query))
+	err = sqlExecute(query)
+
+	if err != nil {
+		log.Println("Could not delete player from room - DB error")
+		http.Error(w, "Could not delete player from room", http.StatusInternalServerError)
+		return
+	}
+
+	json.NewEncoder(w).Encode(map[string]int{"status": http.StatusOK})
+}
+
+func sqlQuery(query string) (interface{}, error) {
 	// listOfBootstrapNodes, _ := net.LookupHost(Config.DNS)
 	// leaderIP, err := GetLeaderIP(listOfBootstrapNodes)
 	//
@@ -102,11 +132,29 @@ func sqlQuery(query string) ([]byte, error) {
 			return nil, err
 		}
 	}
-	return content, nil
+	return data, nil
 }
 
 func sqlExecute(query string) error {
-	listOfBootstrapNodes, _ := net.LookupHost(Config.DNS)
+	//listOfBootstrapNodes, _ := net.LookupHost(Config.DNS)
+
+	resolver := dns_resolver.New([]string{"ns1.dnsimple.com", "ns2.dnsimple.com"})
+	// In case of i/o timeout
+	resolver.RetryTimes = 5
+
+	bootiplist, err := resolver.LookupHost(Config.DNS)
+
+	if err != nil {
+		log.Println("DNS lookup error for autogra.de in CheckForBootstrapNode")
+		log.Fatal(err.Error())
+	}
+
+	listOfBootstrapNodes := []string{}
+
+	for _, val := range bootiplist {
+		listOfBootstrapNodes = append(listOfBootstrapNodes, val.String())
+	}
+
 	leaderIP, err := GetLeaderIP(listOfBootstrapNodes)
 
 	if err != nil {
@@ -116,6 +164,7 @@ func sqlExecute(query string) error {
 	url := "http://" + leaderIP + ":" + strconv.Itoa(DBApiPort) + "/" + "db/execute?pretty&timings"
 	jsonStr, _ := json.Marshal([]string{query})
 	req, err := http.NewRequest("POST", url, bytes.NewBuffer(jsonStr))
+	req.Close = true
 	if err != nil {
 		log.Printf("%s", err)
 		return err
