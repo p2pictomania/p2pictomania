@@ -130,8 +130,24 @@ func receiveFromPublisher(subSocket *zmq.Socket) {
 
 		//TODO:if socket is valid i.e not deleted, receive the message, else discard it
 		//closing the socket causes panic so this is avoided by checking the validity of the socket in the cache
+		res := Message{}
+		err := json.Unmarshal([]byte(string(data[0])), &res)
 
-		log.Print("Message from publisher:")
+		if err != nil {
+			log.Println("Error while unmarshalling in receive" + err.Error())
+			continue
+		}
+
+		//can print a struct with +v
+		log.Printf("res=%+v\n", res)
+
+		/*
+			if IsClosedSocket(Sc.v[membersList[i].NickName]) == false {
+
+				log.Print("Message from publisher:")
+				log.Println(data)
+			}
+		*/
 
 		//Uncomment the lines below to enable decryption
 		/*
@@ -142,7 +158,6 @@ func receiveFromPublisher(subSocket *zmq.Socket) {
 			}
 			fmt.Println(string(decryptedData))
 		*/
-		log.Println(data)
 	}
 
 }
@@ -154,7 +169,20 @@ func insertSelfIntoRoom(selfIP string, selfHostName string, roomID int) int {
 	listOfBootstrapNodes, _ := net.LookupHost("autogra.de")
 
 	//TODO: iterate through the entire listOfBootstrapNodes
-	var bootstrapip string = listOfBootstrapNodes[0]
+
+	var bootstrapip string
+
+	//TODO: iterate through the entire listOfBootstrapNodes
+
+	if len(listOfBootstrapNodes) == 0 {
+		//allocate itself as the bootstrap node.
+		//this safeguards from stale DNS response if the node added itself
+		//to the list of bootstrap servers but is not reflected in the following DNS   		query
+		bootstrapip = NodeIP
+		log.Println("No nodes in DNS response. Self assigning bootstrap node")
+	} else {
+		bootstrapip = listOfBootstrapNodes[0]
+	}
 
 	var url string = "http://" + bootstrapip + ":5000/player/join"
 	msg := addPlayerToRoomJSON{roomID, selfHostName, selfIP}
