@@ -197,10 +197,12 @@ func deleteSelfFromRoom(selfHostName string, roomID int) int {
 	msg := deletePlayerFromRoomJSON{roomID, selfHostName}
 	jsonStr, err := json.Marshal(msg)
 	req, err := http.NewRequest("POST", url, bytes.NewBuffer(jsonStr))
+	req.Close = true
 	req.Header.Set("Content-Type", "application/json")
 
 	client := &http.Client{}
 	resp, err := client.Do(req)
+	defer resp.Body.Close()
 	//log.Println(resp)
 	if err != nil {
 		log.Println("Error while sending POST request to leave room")
@@ -220,6 +222,7 @@ func deleteSelfFromRoom(selfHostName string, roomID int) int {
 	json.Unmarshal(body, &resultjson)
 
 	log.Println("Status response from server in deleteSelfFromRoom:" + strconv.Itoa(resultjson.Status))
+
 	return resultjson.Status
 
 }
@@ -250,10 +253,12 @@ func insertSelfIntoRoom(selfIP string, selfHostName string, roomID int) int {
 	msg := addPlayerToRoomJSON{roomID, selfHostName, selfIP}
 	jsonStr, err := json.Marshal(msg)
 	req, err := http.NewRequest("POST", url, bytes.NewBuffer(jsonStr))
+	req.Close = true
 	req.Header.Set("Content-Type", "application/json")
 
 	client := &http.Client{}
 	resp, err := client.Do(req)
+	defer resp.Body.Close()
 	//log.Println(resp)
 	if err != nil {
 		log.Println("Error while sending POST request to join room")

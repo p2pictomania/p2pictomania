@@ -164,6 +164,7 @@ func sqlExecute(query string) error {
 	url := "http://" + leaderIP + ":" + strconv.Itoa(DBApiPort) + "/" + "db/execute?pretty&timings"
 	jsonStr, _ := json.Marshal([]string{query})
 	req, err := http.NewRequest("POST", url, bytes.NewBuffer(jsonStr))
+	req.Close = true
 	if err != nil {
 		log.Printf("%s", err)
 		return err

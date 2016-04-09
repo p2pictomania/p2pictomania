@@ -88,6 +88,7 @@ func addSelfToDNS() error {
 	}
 	var jsonStr = []byte(`{"record": {"name": "", "record_type": "A", "content": "` + publicIP + `", "ttl": 1, "prio": 10}}`)
 	req, err := http.NewRequest("POST", url, bytes.NewBuffer(jsonStr))
+	req.Close = true
 	req.Header.Set("X-DNSimple-Token", Config.DnsimpleAuthToken)
 	req.Header.Set("Content-Type", "application/json")
 	req.Header.Set("Accept", "application/json")
@@ -132,6 +133,7 @@ func DeleteSelfFromDNS() {
 	var listurl string = "https://api.dnsimple.com/v1/domains/autogra.de/records?type=A"
 
 	req, err := http.NewRequest("GET", listurl, nil)
+	req.Close = true
 	req.Header.Set("X-DNSimple-Token", Config.DnsimpleAuthToken)
 	req.Header.Set("Accept", "application/json")
 
@@ -144,7 +146,7 @@ func DeleteSelfFromDNS() {
 	}
 
 	respBody, err := ioutil.ReadAll(resp.Body)
-
+	defer resp.Body.Close()
 	if err != nil {
 		fmt.Println("error reading response body to A record GET request")
 		Wg.Done()
@@ -158,8 +160,6 @@ func DeleteSelfFromDNS() {
 
 	log.Printf("%+v", resultjson)
 	log.Println(len(resultjson))
-
-	defer resp.Body.Close()
 
 	for _, val := range resultjson {
 
@@ -177,6 +177,7 @@ func DeleteSelfFromDNS() {
 			var deleteurl string = "https://api.dnsimple.com/v1/domains/autogra.de/records/" + strconv.Itoa(val.Record.ID)
 
 			delReq, err := http.NewRequest("DELETE", deleteurl, nil)
+			delReq.Close = true
 			delReq.Header.Set("X-DNSimple-Token", Config.DnsimpleAuthToken)
 			delReq.Header.Set("Accept", "application/json")
 			delReq.Header.Set("Content-Type", "application/json")
@@ -188,7 +189,7 @@ func DeleteSelfFromDNS() {
 				Wg.Done()
 				return
 			}
-
+			defer delResp.Body.Close()
 			delRespBody, err := ioutil.ReadAll(delResp.Body)
 
 			if err != nil {
@@ -199,7 +200,6 @@ func DeleteSelfFromDNS() {
 
 			fmt.Println("Delete Response Body=" + string(delRespBody))
 
-			defer delResp.Body.Close()
 			Wg.Done()
 			//return after deleting 1 matching IP from DNS record
 			return
@@ -296,6 +296,7 @@ func initTables() {
 	url := "http://localhost:" + strconv.Itoa(DBApiPort) + "/" + "db/execute?pretty&timings"
 	var jsonStr = []byte(query)
 	req, err := http.NewRequest("POST", url, bytes.NewBuffer(jsonStr))
+	req.Close = true
 	if err != nil {
 		log.Fatalf("%s", err)
 	}
