@@ -8,9 +8,9 @@ import (
 	"github.com/p2pictomania/p2pictomania/web"
 	"log"
 	"os"
-	"os/signal"
+	//"os/signal"
 	"strconv"
-	"syscall"
+	//"syscall"
 )
 
 func main() {
@@ -41,9 +41,11 @@ func main() {
 		//panic(err.Error())
 	}
 
-	sigs := make(chan os.Signal, 1)
-	//done := make(chan bool, 1)
-	signal.Notify(sigs, syscall.SIGINT, syscall.SIGTERM)
+	/*
+		sigs := make(chan os.Signal, 1)
+		//done := make(chan bool, 1)
+		signal.Notify(sigs, syscall.SIGINT, syscall.SIGTERM)
+	*/
 
 	//Fixed listening port for every node
 	var tempPort int = 1111
@@ -62,20 +64,20 @@ func main() {
 	go connections.ServerListener(connections.NodeListenPort)
 
 	reader := bufio.NewReader(os.Stdin)
-
-	go func() {
-		sig := <-sigs
-		bootstrap.Wg.Add(1)
-		fmt.Println()
-		fmt.Println(sig)
-		log.Println("Performing cleanup")
-		bootstrap.DeleteSelfFromDNS()
-		bootstrap.Wg.Wait()
-		log.Println("Cleanup complete")
-		os.Exit(0)
-		//done <- true
-	}()
-
+	/*
+		go func() {
+			sig := <-sigs
+			bootstrap.Wg.Add(1)
+			fmt.Println()
+			fmt.Println(sig)
+			log.Println("Performing cleanup")
+			bootstrap.DeleteSelfFromDNS()
+			bootstrap.Wg.Wait()
+			log.Println("Cleanup complete")
+			os.Exit(0)
+			//done <- true
+		}()
+	*/
 	for {
 		fmt.Println("Enter command:")
 		cmd, _ := reader.ReadString('\n')
