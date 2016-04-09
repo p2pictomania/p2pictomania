@@ -131,6 +131,12 @@ func receiveFromPublisher(subSocket *zmq.Socket) {
 		//TODO:if socket is valid i.e not deleted, receive the message, else discard it
 		//closing the socket causes panic so this is avoided by checking the validity of the socket in the cache
 		res := Message{}
+
+		if len(data) == 0 {
+			log.Println("Empty message received")
+			continue
+		}
+
 		err := json.Unmarshal([]byte(string(data[0])), &res)
 
 		if err != nil {
@@ -138,16 +144,14 @@ func receiveFromPublisher(subSocket *zmq.Socket) {
 			continue
 		}
 
+		if IsClosedSocket(Sc.v[res.Originator]) == false {
+
+			log.Printf("res=%+v\n", res)
+			//log.Print("Message from publisher:")
+			//log.Println(data)
+		}
+
 		//can print a struct with +v
-		log.Printf("res=%+v\n", res)
-
-		/*
-			if IsClosedSocket(Sc.v[membersList[i].NickName]) == false {
-
-				log.Print("Message from publisher:")
-				log.Println(data)
-			}
-		*/
 
 		//Uncomment the lines below to enable decryption
 		/*
