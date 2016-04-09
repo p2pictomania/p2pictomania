@@ -378,7 +378,7 @@ func checkForBootstrapNodes() bool {
 		}
 		go setupDB("")
 		return true
-	} else if len(listOfBootstrapNodes) < 2 {
+	} else if len(listOfBootstrapNodes) < 3 {
 		err := addSelfToDNS()
 		if err != nil {
 			log.Println(err)
