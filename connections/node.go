@@ -127,6 +127,10 @@ func receiveFromPublisher(subSocket *zmq.Socket) {
 
 	for {
 		data, _ := subSocket.RecvMessage(0)
+
+		//TODO:if socket is valid i.e not deleted, receive the message, else discard it
+		//closing the socket causes panic so this is avoided by checking the validity of the socket in the cache
+
 		log.Print("Message from publisher:")
 
 		//Uncomment the lines below to enable decryption
@@ -262,19 +266,26 @@ func queryRoom(roomID int) ([5]RoomMember, int, error) {
 	return membersList, len(resultjson.Results[0].Values), nil
 }
 
-func ExitRoom(roomName string) {
+func ExitRoom(roomID int) {
 
 	//TODO: make HTTP request/or connect socket to bootstrap server and get a list of nicknames for a room
 
-	nicknameList := [5]string{"alice", "bob", "charlie", "daphnie", ""}
+	membersList, numMembers, errRoom := queryRoom(roomID)
 
-	for i := 0; i < len(nicknameList); i++ {
-		if IsClosedSocket(Sc.v[nicknameList[i]]) == false {
+	if errRoom != nil {
+		log.Print("Error while querying the room in ExitRoom. Room not exited:" + errRoom.Error())
+		return
+	}
+
+	//nicknameList := [5]string{"alice", "bob", "charlie", "daphnie", ""}
+
+	for i := 0; i < numMembers; i++ {
+		if IsClosedSocket(Sc.v[membersList[i].NickName]) == false {
 			//TODO: Close() causes panic in the receiveFromPublisher
 			//nickSock := Sc.Get(nicknameList[i])
 			//nickSock.Close()
-			delete(Sc.v, nicknameList[i])
-			log.Println("ExitRoom: subscriber socket closed for " + nicknameList[i])
+			delete(Sc.v, membersList[i].NickName)
+			log.Println("ExitRoom: subscriber socket closed for " + membersList[i].NickName)
 		}
 	}
 }

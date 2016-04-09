@@ -81,7 +81,7 @@ func main() {
 
 		case "join\n":
 			var input int
-			fmt.Print("Enter roomNumber:")
+			fmt.Print("Enter roomNumber to join:")
 			_, err := fmt.Scanf("%d", &input)
 
 			if err != nil {
@@ -101,7 +101,15 @@ func main() {
 			os.Exit(0)
 
 		case "leave\n":
-			connections.ExitRoom("room1")
+			var input int
+			fmt.Print("Enter roomNumber to leave:")
+			_, err := fmt.Scanf("%d", &input)
+
+			if err != nil {
+				fmt.Println("Invalid roomNumber")
+				continue
+			}
+			connections.ExitRoom(input)
 
 		default:
 			fmt.Println("Unsupported command")

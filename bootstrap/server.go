@@ -129,7 +129,7 @@ func DeleteSelfFromDNS() {
 	var listurl string = "https://api.dnsimple.com/v1/domains/autogra.de/records?type=A"
 
 	req, err := http.NewRequest("GET", listurl, nil)
-	req.Header.Set("X-DNSimple-Token", "abhisheks91@gmail.com:iNHXErTlfoqb0uJkaBe8EZnXxXRksMsO")
+	req.Header.Set("X-DNSimple-Token", Config.DnsimpleAuthToken)
 	req.Header.Set("Accept", "application/json")
 
 	client := &http.Client{}
@@ -154,14 +154,25 @@ func DeleteSelfFromDNS() {
 	log.Printf("%+v", resultjson)
 	log.Println(len(resultjson))
 
+	defer resp.Body.Close()
+
 	for _, val := range resultjson {
+
+		//if NodeIP is found, get the "id" to delete
 		if val.Record.Content == connections.NodeIP {
 			fmt.Println(val.Record.ID)
+
+			//delete the id with the following call
+			//curl  -H 'X-DNSimple-Token: <email>:<token>' \
+			//-H 'Accept: application/json' \
+			//-H 'Content-Type: application/json' \
+			//-X DELETE \
+			//https: //api.dnsimple.com/v1/domains/example.com/records/2
 
 			var deleteurl string = "https://api.dnsimple.com/v1/domains/autogra.de/records/" + strconv.Itoa(val.Record.ID)
 
 			delReq, err := http.NewRequest("DELETE", deleteurl, nil)
-			delReq.Header.Set("X-DNSimple-Token", "abhisheks91@gmail.com:iNHXErTlfoqb0uJkaBe8EZnXxXRksMsO")
+			delReq.Header.Set("X-DNSimple-Token", Config.DnsimpleAuthToken)
 			delReq.Header.Set("Accept", "application/json")
 			delReq.Header.Set("Content-Type", "application/json")
 
@@ -181,20 +192,10 @@ func DeleteSelfFromDNS() {
 
 			fmt.Println("Delete Response Body=" + string(delRespBody))
 
+			defer delResp.Body.Close()
+
 		}
 	}
-
-	defer resp.Body.Close()
-
-	//if the above returns empty string, return
-	//if NodeIP is found, get the "id"
-
-	//delete the id with the following call
-	//curl  -H 'X-DNSimple-Token: <email>:<token>' \
-	//-H 'Accept: application/json' \
-	//-H 'Content-Type: application/json' \
-	//-X DELETE \
-	//https: //api.dnsimple.com/v1/domains/example.com/records/2
 
 }
 
