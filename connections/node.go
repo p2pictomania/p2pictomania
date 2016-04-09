@@ -4,7 +4,7 @@ import (
 	"bufio"
 	"bytes"
 	"encoding/json"
-	"github.com/p2pictomania/p2pictomania/bootstrap"
+	"errors"
 	zmq "github.com/pebbe/zmq4"
 	"io/ioutil"
 	"log"
@@ -195,7 +195,7 @@ func deleteSelfFromRoom(selfHostName string, roomID int) int {
 	// }
 
 	listOfBootstrapNodes, _ := net.LookupHost("autogra.de")
-	bootstrapip, err := bootstrap.GetLeaderIP(listOfBootstrapNodes)
+	bootstrapip, err := GetLeaderIP(listOfBootstrapNodes)
 	if err != nil {
 		return http.StatusInternalServerError
 	}
@@ -257,7 +257,7 @@ func insertSelfIntoRoom(selfIP string, selfHostName string, roomID int) int {
 	// }
 
 	listOfBootstrapNodes, _ := net.LookupHost("autogra.de")
-	bootstrapip, err := bootstrap.GetLeaderIP(listOfBootstrapNodes)
+	bootstrapip, err := GetLeaderIP(listOfBootstrapNodes)
 	if err != nil {
 		return http.StatusInternalServerError
 	}
@@ -318,9 +318,9 @@ func queryRoom(roomID int) ([5]RoomMember, int, error) {
 	// }
 
 	listOfBootstrapNodes, _ := net.LookupHost("autogra.de")
-	bootstrapip, err := bootstrap.GetLeaderIP(listOfBootstrapNodes)
+	bootstrapip, err := GetLeaderIP(listOfBootstrapNodes)
 	if err != nil {
-		return memberList, 0, errors.New("No Leader found to execute query")
+		return membersList, 0, errors.New("No Leader found to execute query")
 	}
 
 	url := "http://" + bootstrapip + ":5000/peers/" + strconv.Itoa(roomID)
