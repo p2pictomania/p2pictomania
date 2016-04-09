@@ -14,6 +14,7 @@ import (
 	"path/filepath"
 	"strconv"
 	"strings"
+	"sync"
 	"time"
 
 	"github.com/bogdanovich/dns_resolver"
@@ -41,6 +42,8 @@ type DNSRecord []struct {
 
 // Config object stores the values in the config.json file
 var Config ConfigObject
+
+var Wg sync.WaitGroup
 
 //ConfigObject holds the parsed config.json file
 type ConfigObject struct {
@@ -136,6 +139,7 @@ func DeleteSelfFromDNS() {
 	resp, err := client.Do(req)
 	if err != nil {
 		log.Fatalf("Cannot bind IP to DNS name: %s", err)
+		Wg.Done()
 		return
 	}
 
@@ -143,6 +147,7 @@ func DeleteSelfFromDNS() {
 
 	if err != nil {
 		fmt.Println("error reading response body to A record GET request")
+		Wg.Done()
 		return
 	}
 
@@ -180,6 +185,7 @@ func DeleteSelfFromDNS() {
 			delResp, err := client.Do(delReq)
 			if err != nil {
 				log.Fatalf("Cannot bind IP to DNS name: %s", err)
+				Wg.Done()
 				return
 			}
 
@@ -187,16 +193,19 @@ func DeleteSelfFromDNS() {
 
 			if err != nil {
 				log.Println("error reading response body in DeleteSelfFromDNS")
+				Wg.Done()
 				return
 			}
 
 			fmt.Println("Delete Response Body=" + string(delRespBody))
 
 			defer delResp.Body.Close()
-
+			Wg.Done()
+			//return after deleting 1 matching IP from DNS record
+			return
 		}
 	}
-
+	Wg.Done()
 }
 
 func dbExists(path string) bool {

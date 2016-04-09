@@ -50,7 +50,9 @@ func main() {
 		fmt.Println()
 		fmt.Println(sig)
 		log.Println("Performing cleanup")
+		bootstrap.Wg.Add(1)
 		bootstrap.DeleteSelfFromDNS()
+		bootstrap.Wg.Wait()
 		os.Exit(0)
 		//done <- true
 	}()
