@@ -43,7 +43,7 @@ func GetPeersForRoom(w http.ResponseWriter, r *http.Request) {
 		http.Error(w, "Couldn't fetch players in room", http.StatusInternalServerError)
 		return
 	}
-	json.NewEncoder(w).Encode(string(result))
+	json.NewEncoder(w).Encode(result)
 }
 
 // AddPlayerToRoom handler adds the given player to a given room in the db
@@ -92,7 +92,7 @@ func DeletePlayerFromRoom(w http.ResponseWriter, r *http.Request) {
 	json.NewEncoder(w).Encode(map[string]int{"status": http.StatusOK})
 }
 
-func sqlQuery(query string) ([]byte, error) {
+func sqlQuery(query string) (interface{}, error) {
 	// listOfBootstrapNodes, _ := net.LookupHost(Config.DNS)
 	// leaderIP, err := GetLeaderIP(listOfBootstrapNodes)
 	//
@@ -132,7 +132,7 @@ func sqlQuery(query string) ([]byte, error) {
 			return nil, err
 		}
 	}
-	return content, nil
+	return data, nil
 }
 
 func sqlExecute(query string) error {
