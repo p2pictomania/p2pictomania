@@ -21,6 +21,11 @@ type addPlayerToRoomJSON struct {
 	PlayerIP       string `json:"playerIP"`
 }
 
+type deletePlayerFromRoomJSON struct {
+	RoomID         int    `json:"roomID"`
+	PlayerNickName string `json:"nickName"`
+}
+
 //Index handler handles the landing page of the UI
 func Index(w http.ResponseWriter, r *http.Request) {
 	fmt.Fprintf(w, "Hi")
@@ -59,6 +64,31 @@ func AddPlayerToRoom(w http.ResponseWriter, r *http.Request) {
 		http.Error(w, "Couldn't add player to room", http.StatusInternalServerError)
 		return
 	}
+	json.NewEncoder(w).Encode(map[string]int{"status": http.StatusOK})
+}
+
+func DeletePlayerFromRoom(w http.ResponseWriter, r *http.Request) {
+
+	decoder := json.NewDecoder(r.Body)
+	var j deletePlayerFromRoomJSON
+	err := decoder.Decode(&j)
+
+	if err != nil {
+		log.Println("Could not delete player from room")
+		http.Error(w, "Could not delete player from room", http.StatusInternalServerError)
+		return
+	}
+
+	query := "DELETE from player_room_mapping where room_id=" + strconv.Itoa(j.RoomID) + " and player_name= \"" + j.PlayerNickName + "\";"
+	log.Println("Delete query:" + string(query))
+	err = sqlExecute(query)
+
+	if err != nil {
+		log.Println("Could not delete player from room - DB error")
+		http.Error(w, "Could not delete player from room", http.StatusInternalServerError)
+		return
+	}
+
 	json.NewEncoder(w).Encode(map[string]int{"status": http.StatusOK})
 }
 

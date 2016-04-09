@@ -36,6 +36,11 @@ type addPlayerToRoomJSON struct {
 	PlayerIP       string `json:"playerIP"`
 }
 
+type deletePlayerFromRoomJSON struct {
+	RoomID         int    `json:"roomID"`
+	PlayerNickName string `json:"nickName"`
+}
+
 type queryResults struct {
 	Results []struct {
 		Columns []string        `json:"columns"`
@@ -163,6 +168,57 @@ func receiveFromPublisher(subSocket *zmq.Socket) {
 			fmt.Println(string(decryptedData))
 		*/
 	}
+
+}
+
+func deleteSelfFromRoom(selfHostName string, roomID int) int {
+
+	listOfBootstrapNodes, _ := net.LookupHost("autogra.de")
+
+	//TODO: iterate through the entire listOfBootstrapNodes
+
+	var bootstrapip string
+
+	//TODO: iterate through the entire listOfBootstrapNodes
+
+	if len(listOfBootstrapNodes) == 0 {
+		//allocate itself as the bootstrap node.
+		//this safeguards from stale DNS response if the node added itself
+		//to the list of bootstrap servers but is not reflected in the following DNS   		query
+		bootstrapip = NodeIP
+		log.Println("No nodes in DNS response. Self assigning bootstrap node")
+	} else {
+		bootstrapip = listOfBootstrapNodes[0]
+	}
+
+	var url string = "http://" + bootstrapip + ":5000/player/leave"
+	msg := deletePlayerFromRoomJSON{roomID, selfHostName}
+	jsonStr, err := json.Marshal(msg)
+	req, err := http.NewRequest("POST", url, bytes.NewBuffer(jsonStr))
+	req.Header.Set("Content-Type", "application/json")
+
+	client := &http.Client{}
+	resp, err := client.Do(req)
+	//log.Println(resp)
+	if err != nil {
+		log.Println("Error while sending POST request to leave room")
+		log.Println(err)
+	}
+
+	body, err := ioutil.ReadAll(resp.Body)
+
+	if err != nil {
+		log.Println("Error from ReadAll in deleteSelfFromRoom:" + err.Error())
+		panic(err.Error())
+	}
+
+	log.Println("Response Body for bootstrap request=" + string(body))
+
+	resultjson := status{}
+	json.Unmarshal(body, &resultjson)
+
+	log.Println("Status response from server in deleteSelfFromRoom:" + strconv.Itoa(resultjson.Status))
+	return resultjson.Status
 
 }
 
@@ -320,6 +376,9 @@ func ExitRoom(roomID int) {
 			log.Println("ExitRoom: subscriber socket closed for " + membersList[i].NickName)
 		}
 	}
+
+	//make POST request to bootstrap server to remove self from the room
+	deleteSelfFromRoom(NodeNickName, roomID)
 }
 
 func GetRoomslist(nickname string) string {
