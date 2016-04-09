@@ -20,7 +20,24 @@ import (
 	sql "github.com/otoolep/rqlite/db"
 	httpd "github.com/otoolep/rqlite/http"
 	"github.com/otoolep/rqlite/store"
+	"github.com/p2pictomania/p2pictomania/connections"
 )
+
+type DNSRecord []struct {
+	Record struct {
+		ID           int         `json:"id"`
+		DomainID     int         `json:"domain_id"`
+		ParentID     interface{} `json:"parent_id"`
+		Name         string      `json:"name"`
+		Content      string      `json:"content"`
+		TTL          int         `json:"ttl"`
+		Prio         interface{} `json:"prio"`
+		RecordType   string      `json:"record_type"`
+		SystemRecord bool        `json:"system_record"`
+		CreatedAt    time.Time   `json:"created_at"`
+		UpdatedAt    time.Time   `json:"updated_at"`
+	} `json:"record"`
+}
 
 // Config object stores the values in the config.json file
 var Config ConfigObject
@@ -101,6 +118,84 @@ func addSelfToDNS() error {
 		return errors.New("DNS record could not be added")
 	}
 	return nil
+}
+
+func DeleteSelfFromDNS() {
+
+	//list using curl  -H 'X-DNSimple-Token: <email>:<token>' \
+	//-H 'Accept: application/json' \
+	//https://api.dnsimple.com/v1/domains/example.com/records
+
+	var listurl string = "https://api.dnsimple.com/v1/domains/autogra.de/records?type=A"
+
+	req, err := http.NewRequest("GET", listurl, nil)
+	req.Header.Set("X-DNSimple-Token", "abhisheks91@gmail.com:iNHXErTlfoqb0uJkaBe8EZnXxXRksMsO")
+	req.Header.Set("Accept", "application/json")
+
+	client := &http.Client{}
+	resp, err := client.Do(req)
+	if err != nil {
+		log.Fatalf("Cannot bind IP to DNS name: %s", err)
+		return
+	}
+
+	respBody, err := ioutil.ReadAll(resp.Body)
+
+	if err != nil {
+		fmt.Println("error reading response body to A record GET request")
+		return
+	}
+
+	log.Println("Response Body=" + string(respBody))
+
+	resultjson := DNSRecord{}
+	json.Unmarshal(respBody, &resultjson)
+
+	log.Printf("%+v", resultjson)
+	log.Println(len(resultjson))
+
+	for _, val := range resultjson {
+		if val.Record.Content == connections.NodeIP {
+			fmt.Println(val.Record.ID)
+
+			var deleteurl string = "https://api.dnsimple.com/v1/domains/autogra.de/records/" + strconv.Itoa(val.Record.ID)
+
+			delReq, err := http.NewRequest("DELETE", deleteurl, nil)
+			delReq.Header.Set("X-DNSimple-Token", "abhisheks91@gmail.com:iNHXErTlfoqb0uJkaBe8EZnXxXRksMsO")
+			delReq.Header.Set("Accept", "application/json")
+			delReq.Header.Set("Content-Type", "application/json")
+
+			client := &http.Client{}
+			delResp, err := client.Do(delReq)
+			if err != nil {
+				log.Fatalf("Cannot bind IP to DNS name: %s", err)
+				return
+			}
+
+			delRespBody, err := ioutil.ReadAll(delResp.Body)
+
+			if err != nil {
+				log.Println("error reading response body in DeleteSelfFromDNS")
+				return
+			}
+
+			fmt.Println("Delete Response Body=" + string(delRespBody))
+
+		}
+	}
+
+	defer resp.Body.Close()
+
+	//if the above returns empty string, return
+	//if NodeIP is found, get the "id"
+
+	//delete the id with the following call
+	//curl  -H 'X-DNSimple-Token: <email>:<token>' \
+	//-H 'Accept: application/json' \
+	//-H 'Content-Type: application/json' \
+	//-X DELETE \
+	//https: //api.dnsimple.com/v1/domains/example.com/records/2
+
 }
 
 func dbExists(path string) bool {

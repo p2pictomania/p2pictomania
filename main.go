@@ -8,7 +8,9 @@ import (
 	"github.com/p2pictomania/p2pictomania/web"
 	"log"
 	"os"
+	"os/signal"
 	"strconv"
+	"syscall"
 )
 
 func main() {
@@ -38,6 +40,20 @@ func main() {
 		os.Exit(0)
 		//panic(err.Error())
 	}
+
+	sigs := make(chan os.Signal, 1)
+	//done := make(chan bool, 1)
+	signal.Notify(sigs, syscall.SIGINT, syscall.SIGTERM)
+
+	go func() {
+		sig := <-sigs
+		fmt.Println()
+		fmt.Println(sig)
+		log.Println("Performing cleanup")
+		bootstrap.DeleteSelfFromDNS()
+		os.Exit(0)
+		//done <- true
+	}()
 
 	//Fixed listening port for every node
 	var tempPort int = 1111
