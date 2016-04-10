@@ -9,7 +9,7 @@ import (
 	"github.com/gorilla/mux"
 	"io/ioutil"
 	"log"
-	//"net"
+	"net"
 	"net/http"
 	"net/url"
 	"strconv"
@@ -67,6 +67,7 @@ func AddPlayerToRoom(w http.ResponseWriter, r *http.Request) {
 	json.NewEncoder(w).Encode(map[string]int{"status": http.StatusOK})
 }
 
+// DeletePlayerFromRoom is used to delete a player from a room in the database
 func DeletePlayerFromRoom(w http.ResponseWriter, r *http.Request) {
 
 	decoder := json.NewDecoder(r.Body)
@@ -93,17 +94,16 @@ func DeletePlayerFromRoom(w http.ResponseWriter, r *http.Request) {
 }
 
 func sqlQuery(query string) (interface{}, error) {
-	// listOfBootstrapNodes, _ := net.LookupHost(Config.DNS)
-	// leaderIP, err := GetLeaderIP(listOfBootstrapNodes)
-	//
-	// if err != nil {
-	// 	return nil, errors.New("No Leader found to execute query")
-	// }
+	listOfBootstrapNodes, _ := net.LookupHost(Config.DNS)
+	leaderIP, err := GetLeaderIP(listOfBootstrapNodes)
+	if err != nil {
+		return nil, errors.New("No Leader found to execute query")
+	}
 
-	// u := "http://" + leaderIP + ":" + strconv.Itoa(DBApiPort) + "/" + "db/query?pretty&timings"
-	u := "http://" + Config.DNS + ":" + strconv.Itoa(DBApiPort) + "/" + "db/query?pretty&timings"
+	u := "http://" + leaderIP + ":" + strconv.Itoa(DBApiPort) + "/" + "db/query?pretty&timings"
+	// u := "http://" + Config.DNS + ":" + strconv.Itoa(DBApiPort) + "/" + "db/query?pretty&timings"
 	var endpoint *url.URL
-	endpoint, err := url.Parse(u)
+	endpoint, err = url.Parse(u)
 	parameters := url.Values{}
 	parameters.Add("q", query)
 	endpoint.RawQuery = parameters.Encode()

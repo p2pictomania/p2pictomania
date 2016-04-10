@@ -24,6 +24,7 @@ import (
 	"github.com/p2pictomania/p2pictomania/connections"
 )
 
+// DNSRecord holds the data of a resolved DNS name
 type DNSRecord []struct {
 	Record struct {
 		ID           int         `json:"id"`
@@ -43,6 +44,7 @@ type DNSRecord []struct {
 // Config object stores the values in the config.json file
 var Config ConfigObject
 
+// Wg is a WaitGroup
 var Wg sync.WaitGroup
 
 //ConfigObject holds the parsed config.json file
@@ -75,6 +77,7 @@ func getPublicIP() (string, error) {
 	return strings.TrimSpace(string(ip)), nil
 }
 
+// GetPublicIP retunrs the public ip of the current node
 func GetPublicIP() (string, error) {
 	return getPublicIP()
 }
@@ -124,13 +127,14 @@ func addSelfToDNS() error {
 	return nil
 }
 
+// DeleteSelfFromDNS is used to delete an entry from the DNSimple records
 func DeleteSelfFromDNS() {
 
 	//list using curl  -H 'X-DNSimple-Token: <email>:<token>' \
 	//-H 'Accept: application/json' \
 	//https://api.dnsimple.com/v1/domains/example.com/records
 
-	var listurl string = "https://api.dnsimple.com/v1/domains/autogra.de/records?type=A"
+	var listurl = "https://api.dnsimple.com/v1/domains/autogra.de/records?type=A"
 
 	req, err := http.NewRequest("GET", listurl, nil)
 	req.Close = true
@@ -174,7 +178,7 @@ func DeleteSelfFromDNS() {
 			//-X DELETE \
 			//https: //api.dnsimple.com/v1/domains/example.com/records/2
 
-			var deleteurl string = "https://api.dnsimple.com/v1/domains/autogra.de/records/" + strconv.Itoa(val.Record.ID)
+			var deleteurl = "https://api.dnsimple.com/v1/domains/autogra.de/records/" + strconv.Itoa(val.Record.ID)
 
 			delReq, err := http.NewRequest("DELETE", deleteurl, nil)
 			delReq.Close = true
@@ -378,7 +382,7 @@ func checkForBootstrapNodes() bool {
 		}
 		go setupDB("")
 		return true
-	} else if len(listOfBootstrapNodes) < 1 {
+	} else if len(listOfBootstrapNodes) < 2 {
 		err := addSelfToDNS()
 		if err != nil {
 			log.Println(err)
