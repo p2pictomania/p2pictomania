@@ -67,6 +67,7 @@ func AddPlayerToRoom(w http.ResponseWriter, r *http.Request) {
 	json.NewEncoder(w).Encode(map[string]int{"status": http.StatusOK})
 }
 
+// DeletePlayerFromRoom is used to delete a player from a room in the database
 func DeletePlayerFromRoom(w http.ResponseWriter, r *http.Request) {
 
 	decoder := json.NewDecoder(r.Body)

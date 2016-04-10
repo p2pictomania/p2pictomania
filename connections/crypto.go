@@ -9,6 +9,7 @@ import (
 	"io"
 )
 
+// Encrypt is used to encrypt the message
 func Encrypt(key, text []byte) ([]byte, error) {
 
 	//returns a new cipher for the key size
@@ -38,6 +39,7 @@ func Encrypt(key, text []byte) ([]byte, error) {
 	return ciphertext, nil
 }
 
+// Decrypt is used to decrypt the message
 func Decrypt(key, text []byte) ([]byte, error) {
 
 	block, err := aes.NewCipher(key)

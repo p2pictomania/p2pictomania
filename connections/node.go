@@ -18,13 +18,14 @@ import (
 
 //TODO: cross compile all code
 //TODO: implement heart beats (send-ack)
-//Socket cache to hold connected sockets to other peers (Peers are identified by unique nickname)
+
+//SocketCache to hold connected sockets to other peers (Peers are identified by unique nickname)
 type SocketCache struct {
 	v   map[string]zmq.Socket
 	mux sync.Mutex
 }
 
-//this struct might be shared with the game logic
+//RoomMember might be shared with the game logic
 type RoomMember struct {
 	IP         string
 	ListenPort int
@@ -185,31 +186,13 @@ func receiveFromPublisher(subSocket *zmq.Socket) {
 
 func deleteSelfFromRoom(selfHostName string, roomID int) int {
 
-	// listOfBootstrapNodes, _ := net.LookupHost("autogra.de")
-	//
-	// //TODO: iterate through the entire listOfBootstrapNodes
-	//
-	// var bootstrapip string
-	//
-	// //TODO: iterate through the entire listOfBootstrapNodes
-	//
-	// if len(listOfBootstrapNodes) == 0 {
-	// 	//allocate itself as the bootstrap node.
-	// 	//this safeguards from stale DNS response if the node added itself
-	// 	//to the list of bootstrap servers but is not reflected in the following DNS   		query
-	// 	bootstrapip = NodeIP
-	// 	log.Println("No nodes in DNS response. Self assigning bootstrap node")
-	// } else {
-	// 	bootstrapip = listOfBootstrapNodes[0]
-	// }
-
 	listOfBootstrapNodes, _ := net.LookupHost("autogra.de")
 	bootstrapip, err := GetLeaderIP(listOfBootstrapNodes)
 	if err != nil {
 		return http.StatusInternalServerError
 	}
 
-	var url string = "http://" + bootstrapip + ":5000/player/leave"
+	var url = "http://" + bootstrapip + ":5000/player/leave"
 	msg := deletePlayerFromRoomJSON{roomID, selfHostName}
 	jsonStr, err := json.Marshal(msg)
 	req, err := http.NewRequest("POST", url, bytes.NewBuffer(jsonStr))
@@ -246,32 +229,13 @@ func deleteSelfFromRoom(selfHostName string, roomID int) int {
 //registers an (IP, Hostname and roomID) with the bootstrap servers
 func insertSelfIntoRoom(selfIP string, selfHostName string, roomID int) int {
 
-	// //TODO: read from config file
-	// listOfBootstrapNodes, _ := net.LookupHost("autogra.de")
-	//
-	// //TODO: iterate through the entire listOfBootstrapNodes
-	//
-	// var bootstrapip string
-	//
-	// //TODO: iterate through the entire listOfBootstrapNodes
-	//
-	// if len(listOfBootstrapNodes) == 0 {
-	// 	//allocate itself as the bootstrap node.
-	// 	//this safeguards from stale DNS response if the node added itself
-	// 	//to the list of bootstrap servers but is not reflected in the following DNS   		query
-	// 	bootstrapip = NodeIP
-	// 	log.Println("No nodes in DNS response. Self assigning bootstrap node")
-	// } else {
-	// 	bootstrapip = listOfBootstrapNodes[0]
-	// }
-
 	listOfBootstrapNodes, _ := net.LookupHost("autogra.de")
 	bootstrapip, err := GetLeaderIP(listOfBootstrapNodes)
 	if err != nil {
 		return http.StatusInternalServerError
 	}
 
-	var url string = "http://" + bootstrapip + ":5000/player/join"
+	var url = "http://" + bootstrapip + ":5000/player/join"
 	msg := addPlayerToRoomJSON{roomID, selfHostName, selfIP}
 	jsonStr, err := json.Marshal(msg)
 	req, err := http.NewRequest("POST", url, bytes.NewBuffer(jsonStr))
@@ -309,23 +273,6 @@ func queryRoom(roomID int) ([5]RoomMember, int, error) {
 
 	var membersList [5]RoomMember
 
-	// //TODO: read autogra.de from config file
-	// listOfBootstrapNodes, _ := net.LookupHost("autogra.de")
-	//
-	// var bootstrapip string
-	//
-	// //TODO: iterate through the entire listOfBootstrapNodes
-	//
-	// if len(listOfBootstrapNodes) == 0 {
-	// 	//allocate itself as the bootstrap node.
-	// 	//this safeguards from stale DNS response if the node added itself
-	// 	//to the list of bootstrap servers but is not reflected in the following DNS   		query
-	// 	bootstrapip = NodeIP
-	// 	log.Println("No nodes in DNS response. Self assigning bootstrap node")
-	// } else {
-	// 	bootstrapip = listOfBootstrapNodes[0]
-	// }
-
 	listOfBootstrapNodes, _ := net.LookupHost("autogra.de")
 	bootstrapip, err := GetLeaderIP(listOfBootstrapNodes)
 	if err != nil {
@@ -356,13 +303,6 @@ func queryRoom(roomID int) ([5]RoomMember, int, error) {
 		panic(err.Error())
 	}
 
-	//var body string = "\"{\"results\":[{\"columns\":[\"room_id\",\"player_name\",\"player_ip\"],\"types\":[\"integer\",\"text\",\"text\"],\"values\":[[1,\"alice\",\"127.0.0.1\"],[1,\"bob\",\"127.0.0.1\"]],\"time\":0.00023971000000000002}]}\""
-
-	// stripSlashesBody := strings.Replace(string(body), "\\", "", -1)
-	// log.Println("stripSlashesBody=" + stripSlashesBody)
-	//
-	// stripDoubleQuotesBody := stripSlashesBody[1 : len(stripSlashesBody)-2]
-	// log.Println("stripDoubleQuotesBody=" + string(stripDoubleQuotesBody))
 	stripDoubleQuotesBody := string(body)
 	resultjson := queryResults{}
 	json.Unmarshal([]byte(stripDoubleQuotesBody), &resultjson)
@@ -624,7 +564,7 @@ func Send(msg Message) {
 
 }
 
-//listens to incoming client connections and binds a port for the publisher
+//ServerListener listens to incoming client connections and binds a port for the publisher
 func ServerListener(listeningport int) {
 
 	log.Println("Bind for publishing data at port " + strconv.Itoa(listeningport))
