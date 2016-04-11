@@ -12,6 +12,7 @@ var tplIndex = pongo2.Must(pongo2.FromFile("web/templates/index.html"))
 var tplLogin = pongo2.Must(pongo2.FromFile("web/templates/login.html"))
 var tplRooms = pongo2.Must(pongo2.FromFile("web/templates/rooms.html"))
 var tplDraw = pongo2.Must(pongo2.FromFile("web/templates/draw.html"))
+var tplGame = pongo2.Must(pongo2.FromFile("web/templates/game.html"))
 
 // httpError returns a HTTP 5xx error
 func httpError(err error, w http.ResponseWriter) {
@@ -86,7 +87,7 @@ func RoomList(w http.ResponseWriter, r *http.Request) {
 
 // Game handler handles the landing page of the UI
 func Game(w http.ResponseWriter, r *http.Request) {
-	err := tplIndex.ExecuteWriter(pongo2.Context{"testValue": "Hello World"}, w)
+	err := tplGame.ExecuteWriter(pongo2.Context{"nickname": Nickname, "dns": Config.BootstrapDNSEndpoint}, w)
 	httpError(err, w)
 }
 
