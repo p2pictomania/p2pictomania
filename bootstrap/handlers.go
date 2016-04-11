@@ -166,9 +166,28 @@ func CreateNewRoom(w http.ResponseWriter, r *http.Request) {
 	jsonData := data.(map[string]interface{})
 	results := jsonData["results"].([]interface{})
 	row := results[0].(map[string]interface{})
+
+	// TODO: will throw an error if there are no rooms with the given name.. code is fragile af !!
 	values := row["values"].([]interface{})
 	roomID := values[0].([]interface{})
 	json.NewEncoder(w).Encode(map[string]int{"status": http.StatusOK, "roomID": int(roomID[0].(float64))})
+}
+
+// GetRoomsList is he handler to return the current list of rooms
+func GetRoomsList(w http.ResponseWriter, r *http.Request) {
+	w.Header().Set("Access-Control-Allow-Origin", "*")
+
+	query := "SELECT * from rooms where open = 1;"
+	result, err := sqlQuery(query)
+	if err != nil {
+		log.Println("Couldn't fetch room list")
+		http.Error(w, "Couldn't fetch room list", http.StatusInternalServerError)
+		return
+	}
+	jsonData := result.(map[string]interface{})
+	results := jsonData["results"].([]interface{})
+	row := results[0].(map[string]interface{})
+	json.NewEncoder(w).Encode(row)
 }
 
 func sqlQuery(query string) (interface{}, error) {
