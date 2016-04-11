@@ -51,9 +51,33 @@ var routes = Routes{
 		AddPlayerToRoom,
 	},
 	Route{
+		"PlayerNew",
+		"POST",
+		"/player/new",
+		AddNewPlayer,
+	},
+	Route{
+		"PlayerDelete",
+		"GET",
+		"/player/delete/{nickname}",
+		DeletePlayer,
+	},
+	Route{
 		"PlayerLeave",
 		"POST",
 		"/player/leave",
 		DeletePlayerFromRoom,
+	},
+	Route{
+		"RoomNew",
+		"POST",
+		"/room/new",
+		CreateNewRoom,
+	},
+	Route{
+		"RoomList",
+		"GET",
+		"/rooms",
+		GetRoomsList,
 	},
 }

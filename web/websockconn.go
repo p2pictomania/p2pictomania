@@ -64,7 +64,7 @@ func (c *connection) ReadMessagesFromSocket() {
 			}
 			break
 		}
-		log.Printf("Got Message %s from client", message)
+		log.Printf("Got Message from client of length %d", len(message))
 		// send recieved message to be broadcasted to all other
 		// connections in the hub
 		Hub.broadcast <- message

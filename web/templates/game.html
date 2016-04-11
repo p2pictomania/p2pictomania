@@ -1,0 +1,52 @@
+{% extends "base.html" %}
+
+{% block top_nav_bar_right %}
+    <li><a href="/rooms">Rooms</a></li>
+    <li class="dropdown">
+        <a href="#" class="dropdown-toggle" data-toggle="dropdown" role="button" aria-haspopup="true" aria-expanded="false">{{nickname}} <span class="caret"></span></a>
+        <ul class="dropdown-menu">
+            <li><a href="/logout">Logout</a></li>
+        </ul>
+    </li>
+{% endblock %}
+
+{% block content %}
+    <div class="row">
+        <div class="col-md-6">
+            <canvas id='src' width='400' height='400' style='border: 2px solid black'></canvas>
+        </div>
+        <div class="col-md-6">
+            <img id='image' src="" width="400" height="400" style="border: 2px solid black"></img>
+        </div>
+    </div>
+{% endblock %}
+
+{% block onload %}
+<script src='/static/js/sketch.js'></script>
+<script type="text/javascript">
+    $(function() {
+        var conn;
+        if(("{{nickname}}" === "")) {
+            window.location.href = "/login";
+        }
+        $('#src').sketch();
+
+        $("#src").on("mouseup", function(e) {
+            var data = $('#src').get(0).toDataURL()
+            conn.send(data);
+        });
+
+        if (window["WebSocket"]) {
+            conn = new WebSocket("ws://localhost:8000/ws");
+            conn.onclose = function(evt) {
+                console.log("connection closed");
+            }
+            conn.onmessage = function(evt) {
+                $('#image').attr("src", evt.data);
+            }
+        } else {
+            console.log("Your browser does not support WebSockets");
+        }
+    });
+</script>
+{% endblock %}
