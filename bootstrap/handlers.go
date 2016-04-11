@@ -26,6 +26,12 @@ type deletePlayerFromRoomJSON struct {
 	PlayerNickName string `json:"nickName"`
 }
 
+// type newPlayerJSON struct {
+// 	Name   string `json:"nickname"`
+// 	IP     string `json:"ip"`
+// 	Active bool   `json:"active"`
+// }
+
 //Index handler handles the landing page of the UI
 func Index(w http.ResponseWriter, r *http.Request) {
 	fmt.Fprintf(w, "Hi")
@@ -93,6 +99,78 @@ func DeletePlayerFromRoom(w http.ResponseWriter, r *http.Request) {
 	json.NewEncoder(w).Encode(map[string]int{"status": http.StatusOK})
 }
 
+// AddNewPlayer adds a new player into the database
+func AddNewPlayer(w http.ResponseWriter, r *http.Request) {
+	w.Header().Set("Access-Control-Allow-Origin", "*")
+	r.ParseForm()
+
+	name := r.FormValue("nickname")
+	ip := r.FormValue("ip")
+	if name == "" || ip == "" {
+		log.Println("Could not decode add player json")
+		http.Error(w, "Could not decode add player json", http.StatusInternalServerError)
+		return
+	}
+
+	query := "INSERT into users values (\"" + name + "\", \"" + ip + "\", 1);"
+	log.Println("New Player Query:" + query)
+	err := sqlExecute(query)
+	if err != nil {
+		log.Println("Failed Login, choose another Nickname")
+		http.Error(w, "Failed Login, choose another Nickname", http.StatusUnauthorized)
+		return
+	}
+	json.NewEncoder(w).Encode(map[string]int{"status": http.StatusOK})
+}
+
+// DeletePlayer removes a player from the DB
+func DeletePlayer(w http.ResponseWriter, r *http.Request) {
+	w.Header().Set("Access-Control-Allow-Origin", "*")
+	urlVars := mux.Vars(r)
+	log.Printf("Deleting user %s", urlVars["nickname"])
+	nickname := urlVars["nickname"]
+
+	query := "DELETE from users where name=\"" + nickname + "\";"
+	err := sqlExecute(query)
+	if err != nil {
+		log.Println("Failed Logout/Delete player from DB")
+		http.Error(w, "Failed Logout/Delete player from DB", http.StatusUnauthorized)
+		return
+	}
+	log.Println("Successfully deleted player from DB")
+	json.NewEncoder(w).Encode(map[string]int{"status": http.StatusOK})
+}
+
+// CreateNewRoom is the handler to create a new room
+func CreateNewRoom(w http.ResponseWriter, r *http.Request) {
+	w.Header().Set("Access-Control-Allow-Origin", "*")
+	r.ParseForm()
+
+	roomname := r.FormValue("roomname")
+	if roomname == "" {
+		log.Println("Could not create new room")
+		http.Error(w, "Could not create new room", http.StatusInternalServerError)
+		return
+	}
+
+	query := "INSERT into rooms(name) values (\"" + roomname + "\");"
+	log.Println("New room Query:" + query)
+	err := sqlExecute(query)
+	if err != nil {
+		log.Println("Failed creating a room, choose another roomname")
+		http.Error(w, "Failed creating a room, choose another roomname", http.StatusUnauthorized)
+		return
+	}
+	query = "SELECT id from rooms where name = \"" + roomname + "\";"
+	data, _ := sqlQuery(query)
+	jsonData := data.(map[string]interface{})
+	results := jsonData["results"].([]interface{})
+	row := results[0].(map[string]interface{})
+	values := row["values"].([]interface{})
+	roomID := values[0].([]interface{})
+	json.NewEncoder(w).Encode(map[string]int{"status": http.StatusOK, "roomID": int(roomID[0].(float64))})
+}
+
 func sqlQuery(query string) (interface{}, error) {
 	listOfBootstrapNodes, _ := net.LookupHost(Config.DNS)
 	leaderIP, err := GetLeaderIP(listOfBootstrapNodes)
@@ -128,6 +206,7 @@ func sqlQuery(query string) (interface{}, error) {
 	for _, result := range results {
 		output := result.(map[string]interface{})
 		if _, ok := output["error"]; ok {
+			err = errors.New("Could not execute query")
 			log.Printf("Could not execute query %s : %s", query, err)
 			return nil, err
 		}
@@ -193,6 +272,7 @@ func sqlExecute(query string) error {
 	for _, result := range results {
 		output := result.(map[string]interface{})
 		if _, ok := output["error"]; ok {
+			err = errors.New("Could not execute query")
 			log.Printf("Could not execute query %s : %s", query, err)
 			return err
 		}

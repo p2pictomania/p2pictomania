@@ -11,12 +11,15 @@ import (
 // Config object stores the values in the config.json file
 var Config ConfigObject
 
+// Nickname stores the currently logged in nickname
+var Nickname string
+
 //ConfigObject holds the parsed config.json file
 type ConfigObject struct {
-	Port             int    `json:"port"`
-	StaticURLPrefix  string `json:"staticURLPrefix"`
-	StaticDir        string `json:"staticDir"`
-	BootstrapNodeURL string `json:"bootstrapNodeURL"`
+	Port                 int    `json:"port"`
+	StaticURLPrefix      string `json:"staticURLPrefix"`
+	StaticDir            string `json:"staticDir"`
+	BootstrapDNSEndpoint string `json:"bootstrapDNSEndpoint"`
 }
 
 func parseConfigFile() (configObject ConfigObject) {

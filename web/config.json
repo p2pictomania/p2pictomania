@@ -2,5 +2,5 @@
     "port" : 8000,
     "staticURLPrefix" : "/static/",
     "staticDir" : "./web/static/",
-    "bootstrapNodeURL": "http://localhost:5000"
+    "bootstrapDNSEndpoint": "http://autogra.de:5000"
 }

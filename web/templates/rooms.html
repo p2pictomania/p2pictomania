@@ -1,0 +1,73 @@
+{% extends "base.html" %}
+
+{% block top_nav_bar_right %}
+    <li><a href="/logout">Logout</a></li>
+{% endblock %}
+
+{% block content %}
+<div class="row">
+    <div class="col-md-8 col-md-offset-2">
+        <div class="row">
+            <div class="col-md-10">
+                <h3>Welcome {{nickname}}!</h3>
+            </div>
+            <div class="col-md-2">
+                <button type="button" class="btn btn-default" data-toggle="modal" data-target="#myModal" style="margin-top: 12px;">
+                  <span class="glyphicon glyphicon-plus" aria-hidden="true"></span> New
+                </button>
+            </div>
+        </div>
+        <div class="jumbotron">
+             <h4>Available Rooms</h4>
+
+        </div>
+    </div>
+</div>
+
+
+
+<!-- Modal -->
+<div class="modal fade" id="myModal" tabindex="-1" role="dialog" aria-labelledby="myModalLabel">
+  <div class="modal-dialog" role="document">
+    <div class="modal-content">
+      <div class="modal-header">
+        <button type="button" class="close" data-dismiss="modal" aria-label="Close"><span aria-hidden="true">&times;</span></button>
+        <h4 class="modal-title" id="myModalLabel">New Room</h4>
+      </div>
+      <div class="modal-body">
+          <label for="roomname">Room Name</label>
+          <input type="text" class="form-control" id="roomname" placeholder="Room Name">
+      </div>
+      <div class="modal-footer">
+        <button type="button" class="btn btn-default" data-dismiss="modal">Close</button>
+        <button type="button" id="create" class="btn btn-primary">Create &amp; Join</button>
+      </div>
+    </div>
+  </div>
+</div>
+
+{% endblock %}
+
+{% block onload %}
+<script type="text/javascript">
+    $(function() {
+        if(("{{nickname}}" === "")) {
+            window.location.href = "/login";
+        }
+
+
+        $("#create").on("click", function(){
+            var roomname = $("#roomname").val();
+            if (roomname === "") {
+                return;
+            }
+            $.post("{{dns}}/room/new", {"roomname": roomname}, function(data){
+                var jsonData = JSON.parse(data)
+                window.location.href = "/game/"+ jsonData["roomID"];
+            }).fail(function() {
+                alert( "Choose different Room Name" );
+            });;
+        });
+    });
+</script>
+{% endblock %}
