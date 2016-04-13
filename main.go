@@ -5,6 +5,7 @@ import (
 	"fmt"
 	"github.com/p2pictomania/p2pictomania/bootstrap"
 	"github.com/p2pictomania/p2pictomania/connections"
+	"github.com/p2pictomania/p2pictomania/game"
 	"github.com/p2pictomania/p2pictomania/web"
 	"log"
 	"os"
@@ -60,6 +61,7 @@ func main() {
 
 	go web.StartServer()
 	go bootstrap.StartServer()
+	go game.StartServer()
 
 	connections.InitSocketCache(&connections.Sc)
 	go connections.ServerListener(connections.NodeListenPort)
