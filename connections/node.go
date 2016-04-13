@@ -5,6 +5,7 @@ import (
 	"bytes"
 	"encoding/json"
 	"errors"
+	"github.com/p2pictomania/p2pictomania/game"
 	zmq "github.com/pebbe/zmq4"
 	"io/ioutil"
 	"log"
@@ -465,6 +466,26 @@ func JoinRoom(nickname string, roomName string) {
 	}
 
 	SetCurrentRoom(roomID)
+
+	if numMembers == 0 {
+		go game.SetupDB("")
+	} else {
+		listofRoomNodes := []string{}
+
+		for i := 0; i < numMembers; i++ {
+			listofRoomNodes = append(listofRoomNodes, membersList[i].IP)
+		}
+
+		leaderIP, err := game.GetLeaderIP(listofRoomNodes)
+		// If no leaderIP found assume all nodes in the bootstrap to be dead
+		// bind self
+		if err != nil {
+			log.Printf("No leader IP found : %s", err)
+			go game.SetupDB("")
+		}
+		go game.SetupDB(leaderIP)
+	}
+
 }
 
 //TODO: ensure that this function returns back (should not block due to anything e.g. channels, sockets etc) since this is called as part of receive

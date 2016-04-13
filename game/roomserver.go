@@ -140,7 +140,7 @@ func waitForAPIStartAndLeader() {
 	defer res.Body.Close()
 }
 
-func setupDB(joinAddr string) {
+func SetupDB(joinAddr string) {
 	if dbExists(DBFolder) {
 		os.RemoveAll(DBFolder)
 	}
