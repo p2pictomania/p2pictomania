@@ -39,6 +39,7 @@ func Index(w http.ResponseWriter, r *http.Request) {
 
 // GetPeersForRoom handler retuns the peers for a given room name
 func GetPeersForRoom(w http.ResponseWriter, r *http.Request) {
+	w.Header().Set("Access-Control-Allow-Origin", "*")
 	urlVars := mux.Vars(r)
 	log.Printf("Peers for room %s requested", urlVars["roomid"])
 	roomID := urlVars["roomid"]
@@ -49,16 +50,24 @@ func GetPeersForRoom(w http.ResponseWriter, r *http.Request) {
 		http.Error(w, "Couldn't fetch players in room", http.StatusInternalServerError)
 		return
 	}
-	json.NewEncoder(w).Encode(result)
+
+	jsonData := result.(map[string]interface{})
+	results := jsonData["results"].([]interface{})
+	row := results[0].(map[string]interface{})
+
+	// TODO: will throw an error if there are no rooms with the given name.. code is fragile af !!
+	values := row["values"].([]interface{})
+	json.NewEncoder(w).Encode(values)
 }
 
 // AddPlayerToRoom handler adds the given player to a given room in the db
 func AddPlayerToRoom(w http.ResponseWriter, r *http.Request) {
+	w.Header().Set("Access-Control-Allow-Origin", "*")
 	decoder := json.NewDecoder(r.Body)
 	var j addPlayerToRoomJSON
 	err := decoder.Decode(&j)
 	if err != nil {
-		log.Println("Couldn't add player to room")
+		log.Println("Couldn't add player to room: " + err.Error())
 		http.Error(w, "Couldn't add player to room", http.StatusInternalServerError)
 		return
 	}
@@ -66,7 +75,7 @@ func AddPlayerToRoom(w http.ResponseWriter, r *http.Request) {
 	query := "INSERT into player_room_mapping values (" + strconv.Itoa(j.RoomID) + ", \"" + j.PlayerNickName + "\", \"" + j.PlayerIP + "\");"
 	err = sqlExecute(query)
 	if err != nil {
-		log.Println("Couldn't add player to room - DB error")
+		log.Println("Couldn't add player to room - DB error: " + err.Error())
 		http.Error(w, "Couldn't add player to room", http.StatusInternalServerError)
 		return
 	}
@@ -75,7 +84,7 @@ func AddPlayerToRoom(w http.ResponseWriter, r *http.Request) {
 
 // DeletePlayerFromRoom is used to delete a player from a room in the database
 func DeletePlayerFromRoom(w http.ResponseWriter, r *http.Request) {
-
+	w.Header().Set("Access-Control-Allow-Origin", "*")
 	decoder := json.NewDecoder(r.Body)
 	var j deletePlayerFromRoomJSON
 	err := decoder.Decode(&j)
@@ -153,7 +162,7 @@ func CreateNewRoom(w http.ResponseWriter, r *http.Request) {
 		return
 	}
 
-	query := "INSERT into rooms(name) values (\"" + roomname + "\");"
+	query := "INSERT into rooms(name, open) values (\"" + roomname + "\", 0);"
 	log.Println("New room Query:" + query)
 	err := sqlExecute(query)
 	if err != nil {
@@ -176,7 +185,7 @@ func CreateNewRoom(w http.ResponseWriter, r *http.Request) {
 // GetRoomsList is he handler to return the current list of rooms
 func GetRoomsList(w http.ResponseWriter, r *http.Request) {
 	w.Header().Set("Access-Control-Allow-Origin", "*")
-
+	log.Println("Query for room list")
 	query := "SELECT * from rooms where open = 1;"
 	result, err := sqlQuery(query)
 	if err != nil {
@@ -188,6 +197,23 @@ func GetRoomsList(w http.ResponseWriter, r *http.Request) {
 	results := jsonData["results"].([]interface{})
 	row := results[0].(map[string]interface{})
 	json.NewEncoder(w).Encode(row)
+}
+
+// OpenRoom is the handler to change a room's open state to 1
+func OpenRoom(w http.ResponseWriter, r *http.Request) {
+	w.Header().Set("Access-Control-Allow-Origin", "*")
+	urlVars := mux.Vars(r)
+	roomID := urlVars["roomID"]
+
+	query := "UPDATE rooms SET open = 1 where id= " + roomID + ";"
+	err := sqlExecute(query)
+	if err != nil {
+		log.Println("Failed to update room to Open: " + err.Error())
+		http.Error(w, "Failed to update room to Open", http.StatusInternalServerError)
+		return
+	}
+	log.Println("Successfully Opened room " + roomID)
+	json.NewEncoder(w).Encode(map[string]int{"status": http.StatusOK})
 }
 
 func sqlQuery(query string) (interface{}, error) {

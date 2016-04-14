@@ -24,29 +24,61 @@
 {% block onload %}
 <script src='/static/js/sketch.js'></script>
 <script type="text/javascript">
+    function onClose(event) {
+        console.log("connection closed");
+    }
+
+    function onMessage(event) {
+        var data = JSON.parse(event.data);
+        if(data["kind"] === "drawing"){
+            $('#image').attr("src", data["data"]);
+        } else if (data["kind"] === "newConn") {
+            var c = new WebSocket("ws://"+data["ip"]+":8000/ws");
+            c.onclose = onClose;
+            c.onmessage = onMessage;
+            connections[data["nickname"]] = {"ip": data["ip"], "conn": c};
+        }
+    }
+
     $(function() {
-        var conn;
+        var me;
+        var connections = {};
+        var maxPlayers = {{maxPlayers}};
         if(("{{nickname}}" === "")) {
             window.location.href = "/login";
         }
         $('#src').sketch();
 
         $("#src").on("mouseup", function(e) {
-            var data = $('#src').get(0).toDataURL()
-            conn.send(data);
+            var data = $('#src').get(0).toDataURL();
+            var jsonData = {"kind": "drawing", "nickname": "{{nickname}}", "data": data};
+            me.send(JSON.stringify(jsonData));
         });
 
-        if (window["WebSocket"]) {
-            conn = new WebSocket("ws://localhost:8000/ws");
-            conn.onclose = function(evt) {
-                console.log("connection closed");
+        $.get("{{dns}}/peers/{{roomID}}", function(data){
+            console.log(data);
+            if (!window["WebSocket"]) {
+                alert("Your browser does not support WebSockets. Ending Game");
+                window.location.href = "/logout";
+                return;
             }
-            conn.onmessage = function(evt) {
-                $('#image').attr("src", evt.data);
+            for(var i=0; i<data.length; i++){
+                if("{{playerIP}}" === data[i][2]){
+                    me = new WebSocket("ws://"+data[i][2]+":8000/ws");
+                    me.onclose = onClose;
+                    me.onmessage = onMessage;
+                } else {
+                    var c = new WebSocket("ws://"+data[i][2]+":8000/ws");
+                    c.onclose = onClose;
+                    c.onmessage = onMessage;
+                    connections[data[i][1]] = {"ip": data[i][2], "conn": c};
+                    var newConnMsg = {"kind": "newConn", "ip": data[i][2], "nickname": data[i][1]};
+                    c.send(JSON.stringify(newConnMsg));
+                }
             }
-        } else {
-            console.log("Your browser does not support WebSockets");
-        }
+        }, "json");
     });
+
+
 </script>
 {% endblock %}

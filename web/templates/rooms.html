@@ -78,7 +78,16 @@
             }
             $.post("{{dns}}/room/new", {"roomname": roomname}, function(data){
                 var jsonData = JSON.parse(data)
-                window.location.href = "/game/"+ jsonData["roomID"];
+                var postData = {"roomID" : jsonData["roomID"], "nickName": "{{nickname}}", "playerIP": "{{playerIP}}" };
+                $.post("{{dns}}/player/join", JSON.stringify(postData) , function (data){
+                    if(data["status"] == 200){
+                        window.location.href = "/game/"+ jsonData["roomID"];
+                    } else {
+                        alert( "How df did we reach here ?");
+                    }
+                }, "json").fail(function() {
+                    alert( "Couldn't add player to room");
+                });;
             }).fail(function() {
                 alert( "Choose different Room Name" );
             });;

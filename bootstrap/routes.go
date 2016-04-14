@@ -75,6 +75,12 @@ var routes = Routes{
 		CreateNewRoom,
 	},
 	Route{
+		"RoomOpen",
+		"GET",
+		"/room/open/{roomID}",
+		OpenRoom,
+	},
+	Route{
 		"RoomList",
 		"GET",
 		"/rooms",

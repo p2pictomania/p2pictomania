@@ -28,4 +28,5 @@ p2pictomania
 *.swp
 bootstrap/config.json
 db
+gamedb
 18842.pem
