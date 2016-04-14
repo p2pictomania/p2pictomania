@@ -71,9 +71,11 @@
                     var c = new WebSocket("ws://"+data[i][2]+":8000/ws");
                     c.onclose = onClose;
                     c.onmessage = onMessage;
+                    c.onopen = function(event){
+                        var newConnMsg = {"kind": "newConn", "ip": data[i][2], "nickname": data[i][1]};
+                        c.send(JSON.stringify(newConnMsg));
+                    }
                     connections[data[i][1]] = {"ip": data[i][2], "conn": c};
-                    var newConnMsg = {"kind": "newConn", "ip": data[i][2], "nickname": data[i][1]};
-                    c.send(JSON.stringify(newConnMsg));
                 }
             }
         }, "json");

@@ -95,7 +95,16 @@
     });
 
     function joinRoom(roomID){
-        window.location.href = "/game/"+ roomID;
+        var postData = {"roomID" : roomID, "nickName": "{{nickname}}", "playerIP": "{{playerIP}}" };
+        $.post("{{dns}}/player/join", JSON.stringify(postData) , function (data){
+            if(data["status"] == 200){
+                window.location.href = "/game/"+ roomID;
+            } else {
+                alert( "How df did we reach here ?");
+            }
+        }, "json").fail(function() {
+            alert( "Couldn't add player to room");
+        });
     }
 
     function populateRooms() {
