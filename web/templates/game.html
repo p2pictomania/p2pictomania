@@ -31,7 +31,7 @@
         <h4>Chat</h4>
         <div class="panel panel-primary">
             <div class="panel-body">
-                <ul id="chartArea" class="chat">
+                <ul id="chatArea" class="chat">
                     <!-- <li class="clearfix" style="list-style: none;margin: 0;padding: 0;margin-bottom: 10px;padding-bottom: 5px;border-bottom: 1px dotted #B3A9A9;">
                         <div class="chat-body clearfix">
                             <span class="time">[05:08:28]</span> <strong style="color:red" class="primary-font">SnoUweR</strong>:<span>Ls</span>
@@ -95,10 +95,9 @@
             $("#imageArea").slick('slickAdd', html);
         } else if(data["kind"] === "chatMessage") {
             var d = new Date();
-            var now = d.toUTCString();
             var html = '<li class="clearfix" style="list-style: none;margin: 0;padding: 0;margin-bottom: 10px;padding-bottom: 5px;border-bottom: 1px dotted #B3A9A9;">'+
                             '<div class="chat-body clearfix">'+
-                                '<span class="time"> ' + now + ' </span> <strong style="color:red" class="primary-font">'+data["nickname"]+'</strong>:<span>'+data["data"]+'</span>'+
+                                '<span class="time"> ' + d.getHours() + ':'+ d.getMinutes() +':' + d.getSeconds() + ' - </span> <strong style="color:red" class="primary-font">'+data["from"]+'</strong>:<span>'+data["data"]+'</span>'+
                             '</div>'+
                         '</li>';
             $("#chatArea").append(html);
