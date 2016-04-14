@@ -85,4 +85,16 @@ var routes = Routes{
 		"/getround",
 		GetRoundForRoom,
 	},
+	Route{
+		"SelectWordForRound",
+		"POST",
+		"/selectword",
+		SelectWordForRound,
+	},
+	Route{
+		"IsRoundReady",
+		"GET",
+		"/isroundready",
+		IsRoundReady,
+	},
 }
