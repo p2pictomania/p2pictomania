@@ -36,6 +36,9 @@
         if(data["kind"] === "drawing"){
             $('#image').attr("src", data["data"]);
         } else if (data["kind"] === "newConn") {
+            if(data["nickname"] == "{{nickname}}"){
+                return;
+            }
             var c = new WebSocket("ws://"+data["ip"]+":8000/ws");
             c.onclose = onClose;
             c.onmessage = onMessage;
@@ -72,10 +75,8 @@
                     var c = new WebSocket("ws://"+data[i][2]+":8000/ws");
                     c.onclose = onClose;
                     c.onmessage = onMessage;
-                    c.ip = data[i][2];
-                    c.nickname = data[i][1];
                     c.onopen = function(event){
-                        var newConnMsg = {"kind": "newConn", "ip": this.ip, "nickname": this.nickname};
+                        var newConnMsg = {"kind": "newConn", "ip": "{{playerIP}}", "nickname": "{{nickname}}"};
                         c.send(JSON.stringify(newConnMsg));
                     }
                     connections[data[i][1]] = {"ip": data[i][2], "conn": c};
