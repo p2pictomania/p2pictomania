@@ -3,13 +3,16 @@ package game
 import (
 	"bytes"
 	"encoding/json"
+	"errors"
 	"fmt"
 	sql "github.com/otoolep/rqlite/db"
 	httpd "github.com/otoolep/rqlite/http"
 	"github.com/otoolep/rqlite/store"
+	"github.com/p2pictomania/p2pictomania/connections"
 	"io/ioutil"
 	"log"
 	"net/http"
+	"net/url"
 	"os"
 	"os/signal"
 	"path/filepath"
@@ -73,7 +76,9 @@ func dbExists(path string) bool {
 
 func initTables() {
 	query := "[" +
-		"\"CREATE TABLE `player_room_score_mapping` (`room_id` INTEGER NOT NULL, `player_name` TEXT NOT NULL, `player_ip` TEXT NOT NULL, `score` INTEGER, UNIQUE (`room_id`, `player_name`) ON CONFLICT REPLACE);\"" +
+		"\"CREATE TABLE `round_room_mapping` (`round_id` INTEGER NOT NULL, `room_id` INTEGER NOT NULL, UNIQUE (`room_id`, `round_id`) ON CONFLICT REPLACE);\"," +
+		"\"CREATE TABLE `words_round_mapping` (`round_id` INTEGER NOT NULL, `room_id` INTEGER NOT NULL, `player_name` TEXT NOT NULL, `word` TEXT NOT NULL, UNIQUE (`round_id`, `player_name`, `word`) ON CONFLICT REPLACE);\"," +
+		"\"CREATE TABLE `player_score_mapping` (`room_id` INTEGER NOT NULL, `player_name` TEXT NOT NULL, `score` INTEGER, UNIQUE (`room_id`, `player_name`) ON CONFLICT REPLACE);\"" +
 		"]"
 
 	url := "http://localhost:" + strconv.Itoa(DBApiPort) + "/" + "db/execute?pretty&timings"
@@ -95,6 +100,8 @@ func initTables() {
 
 	// check for execution response
 	content, err := ioutil.ReadAll(resp.Body)
+
+	log.Println("Response from initTable=" + string(content))
 	var j interface{}
 	err = json.Unmarshal(content, &j)
 	if err != nil {
@@ -108,6 +115,118 @@ func initTables() {
 			log.Fatalf("Could not execute query %d in querySet %s : %s", i, query, val)
 		}
 	}
+}
+
+func GetRoomLeader(roomID int) (string, error) {
+
+	membersList, numMembers, errRoom := connections.QueryRoom(roomID)
+
+	if errRoom != nil {
+		return "", errRoom
+	}
+
+	if numMembers == 0 {
+		return "", errors.New("no room members found")
+	}
+
+	listofRoomNodes := []string{}
+
+	for i := 0; i < numMembers; i++ {
+		listofRoomNodes = append(listofRoomNodes, membersList[i].IP)
+	}
+
+	log.Println("List of room nodes=")
+	log.Println(listofRoomNodes)
+	leaderIP, err := GetLeaderIP(listofRoomNodes)
+
+	if err != nil {
+		return "", errors.New("No Leader found to execute query")
+	}
+
+	return leaderIP, nil
+
+}
+
+func SqlQuery(query string, leaderIP string) (interface{}, error) {
+	//listOfBootstrapNodes, _ := net.LookupHost(Config.DNS)
+
+	u := "http://" + leaderIP + ":" + strconv.Itoa(DBApiPort) + "/" + "db/query?pretty&timings"
+	// u := "http://" + Config.DNS + ":" + strconv.Itoa(DBApiPort) + "/" + "db/query?pretty&timings"
+	var endpoint *url.URL
+	endpoint, err := url.Parse(u)
+	parameters := url.Values{}
+	parameters.Add("q", query)
+	endpoint.RawQuery = parameters.Encode()
+
+	resp, err := http.Get(endpoint.String())
+	if err != nil {
+		log.Printf("%s", err)
+		return nil, err
+	}
+	defer resp.Body.Close()
+
+	// check for execution response
+	content, _ := ioutil.ReadAll(resp.Body)
+	var j interface{}
+	err = json.Unmarshal(content, &j)
+	if err != nil {
+		log.Printf("Could not read json response from db server: %s", err)
+		return nil, err
+	}
+	data := j.(map[string]interface{})
+	results := data["results"].([]interface{})
+	for _, result := range results {
+		output := result.(map[string]interface{})
+		if _, ok := output["error"]; ok {
+			err = errors.New("Could not execute query")
+			log.Printf("Could not execute query %s : %s", query, err)
+			return nil, err
+		}
+	}
+	return data, nil
+}
+
+func SqlExecute(query string, leaderIP string) error {
+	//listOfBootstrapNodes, _ := net.LookupHost(Config.DNS)
+
+	url := "http://" + leaderIP + ":" + strconv.Itoa(DBApiPort) + "/" + "db/execute?pretty&timings"
+	jsonStr, _ := json.Marshal([]string{query})
+	req, err := http.NewRequest("POST", url, bytes.NewBuffer(jsonStr))
+	req.Close = true
+	if err != nil {
+		log.Printf("%s", err)
+		return err
+	}
+	req.Header.Set("Content-Type", "application/json")
+	req.Header.Set("Accept", "application/json")
+
+	client := &http.Client{}
+	resp, err := client.Do(req)
+	if err != nil {
+		log.Printf("Cannot execute query %s: %s", query, err)
+		return err
+	}
+	defer resp.Body.Close()
+
+	// check for execution response
+	content, _ := ioutil.ReadAll(resp.Body)
+	var j interface{}
+	err = json.Unmarshal(content, &j)
+	if err != nil {
+		log.Printf("Could not read json response from db server: %s", err)
+		return err
+	}
+	data := j.(map[string]interface{})
+	results := data["results"].([]interface{})
+	for _, result := range results {
+		output := result.(map[string]interface{})
+		if _, ok := output["error"]; ok {
+			err = errors.New("Could not execute query")
+			log.Printf("Could not execute query %s : %s", query, err)
+			return err
+		}
+	}
+	return nil
 }
 
 func join(joinAddr, raftAddr string) error {

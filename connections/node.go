@@ -5,7 +5,6 @@ import (
 	"bytes"
 	"encoding/json"
 	"errors"
-	"github.com/p2pictomania/p2pictomania/game"
 	zmq "github.com/pebbe/zmq4"
 	"io/ioutil"
 	"log"
@@ -270,7 +269,7 @@ func insertSelfIntoRoom(selfIP string, selfHostName string, roomID int) int {
 }
 
 //Returns membersList and number of members in the room
-func queryRoom(roomID int) ([5]RoomMember, int, error) {
+func QueryRoom(roomID int) ([5]RoomMember, int, error) {
 
 	var membersList [5]RoomMember
 
@@ -335,7 +334,7 @@ func ExitRoom(roomID int) {
 
 	//TODO: make HTTP request/or connect socket to bootstrap server and get a list of nicknames for a room
 
-	membersList, numMembers, errRoom := queryRoom(roomID)
+	membersList, numMembers, errRoom := QueryRoom(roomID)
 
 	if errRoom != nil {
 		log.Print("Error while querying the room in ExitRoom. Room not exited:" + errRoom.Error())
@@ -396,7 +395,7 @@ func JoinRoom(nickname string, roomName string) {
 		return
 	}
 
-	membersList, numMembers, errRoom := queryRoom(roomID)
+	membersList, numMembers, errRoom := QueryRoom(roomID)
 
 	if errRoom != nil {
 		log.Print("Error while querying the room. Room not joined:")
@@ -467,27 +466,42 @@ func JoinRoom(nickname string, roomName string) {
 
 	SetCurrentRoom(roomID)
 
-	if numMembers == 0 {
-		go game.SetupDB("")
-	} else {
-		listofRoomNodes := []string{}
+}
 
-		for i := 0; i < numMembers; i++ {
-			listofRoomNodes = append(listofRoomNodes, membersList[i].IP)
-		}
+/*
+func getRoomLeader(int RoomID) string {
 
-		leaderIP, err := game.GetLeaderIP(listofRoomNodes)
-		// If no leaderIP found assume all nodes in the bootstrap to be dead
-		// bind self
-		if err != nil {
-			log.Printf("No leader IP found : %s", err)
-			go game.SetupDB("")
-		}
-		go game.SetupDB(leaderIP)
+	membersList, numMembers, errRoom := queryRoom(roomID)
+
+	if errRoom != nil {
+		log.Print("Error while querying the room. Room not joined:")
+		log.Println(errRoom)
+		return nil
 	}
+
+	if numMembers == 0 {
+		return nil
+	}
+
+	listofRoomNodes := []string{}
+
+	for i := 0; i < numMembers; i++ {
+		listofRoomNodes = append(listofRoomNodes, membersList[i].IP)
+	}
+
+	leaderIP, err := game.GetLeaderIP(listofRoomNodes)
+	// If no leaderIP found assume all nodes in the bootstrap to be dead
+	// bind self
+	if err != nil {
+		log.Printf("No leader IP found : %s", err)
+		return nil
+	}
+
+	return leaderIP
 
 }
 
+*/
 //TODO: ensure that this function returns back (should not block due to anything e.g. channels, sockets etc) since this is called as part of receive
 func handleMessage(msg Message, clientsock net.Conn) {
 

@@ -20,6 +20,7 @@ import (
 	sql "github.com/otoolep/rqlite/db"
 	httpd "github.com/otoolep/rqlite/http"
 	"github.com/otoolep/rqlite/store"
+	"github.com/p2pictomania/p2pictomania/game"
 )
 
 var tplIndex = pongo2.Must(pongo2.FromFile("web/templates/index.html"))
@@ -33,6 +34,11 @@ var GameStore *store.Store
 
 var quit = make(chan bool, 1)
 var done = make(chan bool, 1)
+
+type setRoundForRoom struct {
+	RoundID int `json:"roundID"`
+	RoomID  int `json:"roomID"`
+}
 
 // httpError returns a HTTP 5xx error
 func httpError(err error, w http.ResponseWriter) {
@@ -66,6 +72,80 @@ func AuthUser(w http.ResponseWriter, r *http.Request) {
 	}
 	Nickname = name
 	json.NewEncoder(w).Encode(map[string]int{"status": http.StatusOK})
+}
+
+func SetRoundForRoom(w http.ResponseWriter, r *http.Request) {
+	decoder := json.NewDecoder(r.Body)
+	var j setRoundForRoom
+	err := decoder.Decode(&j)
+	if err != nil {
+		log.Println("Could not set round and room")
+		http.Error(w, "Could not set round and room", http.StatusInternalServerError)
+		return
+	}
+
+	leaderIP, err := game.GetRoomLeader(j.RoomID)
+
+	query := "INSERT into round_room_mapping values (" + strconv.Itoa(j.RoundID) + ", " + strconv.Itoa(j.RoomID) + ");"
+	err = game.SqlExecute(query, leaderIP)
+
+	if err != nil {
+		log.Println("Could not set round and room - DB error")
+		http.Error(w, "Could not set round and room - DB error", http.StatusInternalServerError)
+		return
+	}
+
+	json.NewEncoder(w).Encode(map[string]int{"status": http.StatusOK})
+}
+
+func GetRoundForRoom(w http.ResponseWriter, r *http.Request) {
+
+	/*
+		urlVars := mux.Vars(r)
+		log.Printf("GetRoundForRoom %s requested", urlVars["roomid"])
+		roomID := urlVars["roomid"]
+		roomIDint, err := strconv.Atoi(roomID)
+	*/
+
+	if err := r.ParseForm(); err != nil {
+		log.Println("Invalid room id passed")
+		http.Error(w, "Invalid room id passed", http.StatusInternalServerError)
+		return
+	}
+
+	roomID := r.Form.Get("roomid")
+	log.Printf("GetRoundForRoom %s requested", roomID)
+	/*
+		if err != nil {
+			log.Println("Invalid room id passed")
+			http.Error(w, "Invalid room id passed", http.StatusInternalServerError)
+			return
+		}
+	*/
+
+	roomIDint, err := strconv.Atoi(roomID)
+
+	leaderIP, err := game.GetRoomLeader(roomIDint)
+
+	if err != nil {
+		log.Println("Error while getting room leader")
+		http.Error(w, "Error while getting room leader", http.StatusInternalServerError)
+		return
+	}
+
+	query := "SELECT * from round_room_mapping where room_id=" + roomID + ";"
+	result, err := game.SqlQuery(query, leaderIP)
+
+	if err != nil {
+		log.Println("Couldn't fetch room list")
+		http.Error(w, "Couldn't fetch room list", http.StatusInternalServerError)
+		return
+	}
+
+	jsonData := result.(map[string]interface{})
+	results := jsonData["results"].([]interface{})
+	row := results[0].(map[string]interface{})
+	json.NewEncoder(w).Encode(row)
 }
 
 // Logout is used to set the current user

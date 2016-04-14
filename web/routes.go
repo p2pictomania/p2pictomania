@@ -73,4 +73,16 @@ var routes = Routes{
 		"/ws",
 		HandleSocketConn,
 	},
+	Route{
+		"SetRoundForRoom",
+		"POST",
+		"/setround",
+		SetRoundForRoom,
+	},
+	Route{
+		"GetRoundForRoom",
+		"GET",
+		"/getround",
+		GetRoundForRoom,
+	},
 }
