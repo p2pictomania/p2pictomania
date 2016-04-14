@@ -16,21 +16,47 @@
 {% endblock %}
 
 {% block content %}
-<div class="jumbotron">
+<div class="jumbotron" style="background-color: rgba(211, 211, 211, 0.76);">
     <div class="row">
         <div class="col-md-6">
-            <canvas id='src' height='400' style='width: 90%; border: 1px solid black'></canvas>
+            <canvas id='src' height='400' style='width: 90%; border: 1px solid black; background-color:white;'></canvas>
         </div>
         <div id="imageArea" class="col-md-6">
         </div>
     </div>
 </div>
+
+<div class="row">
+    <div class="col-md-5">
+        <h4>Chat</h4>
+        <div class="panel panel-primary">
+            <div class="panel-body">
+                <ul id="charArea" class="chat">
+                    <!-- <li class="clearfix" style="list-style: none;margin: 0;padding: 0;margin-bottom: 10px;padding-bottom: 5px;border-bottom: 1px dotted #B3A9A9;">
+                        <div class="chat-body clearfix">
+                            <span class="time">[05:08:28]</span> <strong style="color:red" class="primary-font">SnoUweR</strong>:<span>Ls</span>
+                        </div>
+                    </li> -->
+
+                </ul>
+            </div>
+            <div class="panel-footer">
+                <div class="input-group">
+                    <input id="chat-input" type="text" class="form-control input-sm" placeholder="Type your message here..." />
+                    <span class="input-group-btn"><button class="btn btn-warning btn-sm" id="btn-chat">Send</button></span>
+                </div>
+            </div>
+        </div>
+    </div>
+</div>
+
 {% endblock %}
 
 {% block onload %}
 <script type="text/javascript" src="//code.jquery.com/jquery-migrate-1.2.1.min.js"></script>
 <script type="text/javascript" src='/static/js/sketch.js'></script>
 <script type="text/javascript" src="/static/js/slick.js"></script>
+<script type="text/javascript" src="/static/js/date.js"></script>
 <script type="text/javascript">
     var me;
     var connections = {};
@@ -53,18 +79,29 @@
             c.onmessage = onMessage;
             connections[data["nickname"]] = {"ip": data["ip"], "conn": c};
 
-            var form = '<form class="form-inline">'+
-                            '<div class="form-group has-success">'+
-                                '<div class="input-group">'+
-                                    '<span class="input-group-addon">@'+data["nickname"]+'</span>' +
-                                    '<input type="text" class="form-control" id="input-'+data["nickname"]+'" aria-describedby="inputGroupSuccess1Status">' +
+            var form = '<form class="form-horizontal">'+
+                            '<div class="form-group has-success has-feedback">'+
+                                '<div class="col-sm-12">'+
+                                    '<div class="input-group">'+
+                                        '<span class="input-group-addon">@'+data["nickname"]+'</span>' +
+                                        '<input type="text" class="form-control" id="input-'+data["nickname"]+'">' +
+                                        '<span class="input-group-addon">Submit</span>'+
+                                    '</div>'+
                                 '</div>'+
                             '</div>'+
-                            '<button type="submit" class="btn btn-default">Guess</button>'+
                         '</form>';
-            var image = '<img id="image-'+data["nickname"]+'" src="" height="400" style="width: 100%; border: 1px solid black"></img>';
+            var image = '<img id="image-'+data["nickname"]+'" src="" height="400" style="width: 100%; border: 1px solid black; background-color:white;"></img>';
             var html = '<div>' + image + ' ' + form + '</div>';
             $("#imageArea").slick('slickAdd', html);
+        } else if(data["kind"] === "chatMessage") {
+            var d = new Date();
+            var now = d.toUTCString();
+            var html = '<li class="clearfix" style="list-style: none;margin: 0;padding: 0;margin-bottom: 10px;padding-bottom: 5px;border-bottom: 1px dotted #B3A9A9;">'+
+                            '<div class="chat-body clearfix">'+
+                                '<span class="time"> ' + now + ' </span> <strong style="color:red" class="primary-font">'+data["nickname"]+'</strong>:<span>'+data["data"]+'</span>'+
+                            '</div>'+
+                        '</li>';
+            $("#chatArea").append(html);
         }
     }
 
@@ -88,6 +125,17 @@
             me.send(JSON.stringify(jsonData));
         });
 
+        $("#btn-chat").on('click', function(){
+            var chat = $("#chat-input").val();
+            var data = {"kind": "chatMessage", "from": "{{nickname}}", "data": chat};
+            for (var property in connections) {
+                if (connections.hasOwnProperty(property)) {
+                    var sock = connections[property]["conn"];
+                    sock.send(JSON.stringify(data));
+                }
+            }
+        });
+
         $.get("{{dns}}/peers/{{roomID}}", function(data){
             console.log(data);
             if (!window["WebSocket"]) {
@@ -109,16 +157,18 @@
                         c.send(JSON.stringify(newConnMsg));
                     }
                     connections[data[i][1]] = {"ip": data[i][2], "conn": c};
-                    var form = '<form class="form-inline">'+
-                                    '<div class="form-group has-success">'+
-                                        '<div class="input-group">'+
-                                            '<span class="input-group-addon">@'+data[i][1]+'</span>' +
-                                            '<input type="text" class="form-control" id="input-'+data[i][1]+'" aria-describedby="inputGroupSuccess1Status">' +
+                    var form = '<form class="form-horizontal">'+
+                                    '<div class="form-group has-success has-feedback">'+
+                                        '<div class="col-sm-12">'+
+                                            '<div class="input-group">'+
+                                                '<span class="input-group-addon">@'+data[i][1]+'</span>' +
+                                                '<input type="text" class="form-control" id="input-'+data[i][1]+'">' +
+                                                '<span class="input-group-addon">Submit</span>'+
+                                            '</div>'+
                                         '</div>'+
                                     '</div>'+
-                                    '<button type="submit" class="btn btn-default">Guess</button>'+
                                 '</form>';
-                    var image = '<img id="image-'+data[i][1]+'" src="" height="400" style="width: 100%; border: 1px solid black"></img>';
+                    var image = '<img id="image-'+data[i][1]+'" src="" height="400" style="width: 100%; border: 1px solid black; background-color:white;"></img>';
                     var html = '<div>' + image + ' ' + form + '</div>';
                     $("#imageArea").slick('slickAdd', html);
                 }
