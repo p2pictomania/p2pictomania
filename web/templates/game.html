@@ -1,5 +1,10 @@
 {% extends "base.html" %}
 
+{% block headscripts %}
+<link rel="stylesheet" type="text/css" href="/static/css/slick.css"/>
+<link rel="stylesheet" type="text/css" href="/static/css/slick-theme.css"/>
+{% endblock %}
+
 {% block top_nav_bar_right %}
     <li><a href="/rooms">Rooms</a></li>
     <li class="dropdown">
@@ -11,18 +16,21 @@
 {% endblock %}
 
 {% block content %}
+<div class="jumbotron">
     <div class="row">
         <div class="col-md-6">
-            <canvas id='src' width='400' height='400' style='border: 2px solid black'></canvas>
+            <canvas id='src' height='400' style='width: 90%; border: 1px solid black'></canvas>
         </div>
-        <div class="col-md-6">
-            <img id='image' src="" width="400" height="400" style="border: 2px solid black"></img>
+        <div id="imageArea" class="col-md-6">
         </div>
     </div>
+</div>
 {% endblock %}
 
 {% block onload %}
-<script src='/static/js/sketch.js'></script>
+<script type="text/javascript" src="//code.jquery.com/jquery-migrate-1.2.1.min.js"></script>
+<script type="text/javascript" src='/static/js/sketch.js'></script>
+<script type="text/javascript" src="/static/js/slick.js"></script>
 <script type="text/javascript">
     var me;
     var connections = {};
@@ -34,7 +42,8 @@
     function onMessage(event) {
         var data = JSON.parse(event.data);
         if(data["kind"] === "drawing"){
-            $('#image').attr("src", data["data"]);
+            var image = $("#image-"+data["nickname"]);
+            image.attr("src", data["data"]);
         } else if (data["kind"] === "newConn") {
             if(data["nickname"] == "{{nickname}}"){
                 return;
@@ -43,6 +52,19 @@
             c.onclose = onClose;
             c.onmessage = onMessage;
             connections[data["nickname"]] = {"ip": data["ip"], "conn": c};
+
+            var form = '<form class="form-inline">'+
+                            '<div class="form-group has-success">'+
+                                '<div class="input-group">'+
+                                    '<span class="input-group-addon">@'+data["nickname"]+'</span>' +
+                                    '<input type="text" class="form-control" id="input-'+data["nickname"]+'" aria-describedby="inputGroupSuccess1Status">' +
+                                '</div>'+
+                            '</div>'+
+                            '<button type="submit" class="btn btn-default">Guess</button>'+
+                        '</form>';
+            var image = '<img id="image-'+data["nickname"]+'" src="" height="400" style="width: 100%; border: 1px solid black"></img>';
+            var html = '<div>' + image + ' ' + form + '</div>';
+            $("#imageArea").slick('slickAdd', html);
         }
     }
 
@@ -52,6 +74,13 @@
             window.location.href = "/login";
         }
         $('#src').sketch();
+        $('#imageArea').slick({
+            slidesToShow: 1,
+            slidesToScroll: 1,
+            accessibility: true,
+            prevArrow: '<button type="button" class="slick-prev">Previous</button>',
+            nextArrow: '<button type="button" class="slick-next">Next</button>'
+        });
 
         $("#src").on("mouseup", function(e) {
             var data = $('#src').get(0).toDataURL();
@@ -80,6 +109,18 @@
                         c.send(JSON.stringify(newConnMsg));
                     }
                     connections[data[i][1]] = {"ip": data[i][2], "conn": c};
+                    var form = '<form class="form-inline">'+
+                                    '<div class="form-group has-success">'+
+                                        '<div class="input-group">'+
+                                            '<span class="input-group-addon">@'+data[i][1]+'</span>' +
+                                            '<input type="text" class="form-control" id="input-'+data[i][1]+'" aria-describedby="inputGroupSuccess1Status">' +
+                                        '</div>'+
+                                    '</div>'+
+                                    '<button type="submit" class="btn btn-default">Guess</button>'+
+                                '</form>';
+                    var image = '<img id="image-'+data[i][1]+'" src="" height="400" style="width: 100%; border: 1px solid black"></img>';
+                    var html = '<div>' + image + ' ' + form + '</div>';
+                    $("#imageArea").slick('slickAdd', html);
                 }
             }
         }, "json");
