@@ -127,12 +127,7 @@
         $("#btn-chat").on('click', function(){
             var chat = $("#chat-input").val();
             var data = {"kind": "chatMessage", "from": "{{nickname}}", "data": chat};
-            for (var property in connections) {
-                if (connections.hasOwnProperty(property)) {
-                    var sock = connections[property]["conn"];
-                    sock.send(JSON.stringify(data));
-                }
-            }
+            me.send(JSON.stringify(data));
             var chat = $("#chat-input").val('');
         });
 
