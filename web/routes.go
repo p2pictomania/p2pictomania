@@ -97,4 +97,28 @@ var routes = Routes{
 		"/isroundready",
 		IsRoundReady,
 	},
+	Route{
+		"CheckGuess",
+		"GET",
+		"/checkguess",
+		CheckGuess,
+	},
+	Route{
+		"GetWords",
+		"GET",
+		"/getwords",
+		GetWords,
+	},
+	Route{
+		"SetScore",
+		"GET",
+		"/setscore",
+		SetScore,
+	},
+	Route{
+		"GetScore",
+		"GET",
+		"/getscore",
+		GetScore,
+	},
 }
