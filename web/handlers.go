@@ -70,6 +70,10 @@ func AuthUser(w http.ResponseWriter, r *http.Request) {
 
 // Logout is used to set the current user
 func Logout(w http.ResponseWriter, r *http.Request) {
+	if Nickname == "" {
+		Login(w, r)
+		return
+	}
 	url := Config.BootstrapDNSEndpoint + "/player/delete/" + Nickname
 	log.Println("Delete url: " + url)
 	resp, err := http.Get(url)
@@ -101,6 +105,10 @@ func RoomList(w http.ResponseWriter, r *http.Request) {
 
 // Game handler handles the landing page of the UI
 func Game(w http.ResponseWriter, r *http.Request) {
+	if Nickname == "" {
+		Login(w, r)
+		return
+	}
 	urlVars := mux.Vars(r)
 	roomID := urlVars["roomID"]
 	ip, _ := GetPublicIP()
@@ -187,7 +195,10 @@ func getListOfPlayersForRoom(roomID string) ([]interface{}, error) {
 		return nil, err
 	}
 	var j interface{}
-	_ = json.Unmarshal(contents, &j)
+	err = json.Unmarshal(contents, &j)
+	if err != nil {
+		return nil, err
+	}
 	data := j.([]interface{})
 	return data, nil
 }
