@@ -1,5 +1,10 @@
 {% extends "base.html" %}
 
+{% block headscripts %}
+<link rel="stylesheet" type="text/css" href="/static/css/slick.css"/>
+<link rel="stylesheet" type="text/css" href="/static/css/slick-theme.css"/>
+{% endblock %}
+
 {% block top_nav_bar_right %}
     <li><a href="/rooms">Rooms</a></li>
     <li class="dropdown">
@@ -11,42 +16,166 @@
 {% endblock %}
 
 {% block content %}
+<div class="jumbotron" style="background-color: rgba(211, 211, 211, 0.76);">
     <div class="row">
         <div class="col-md-6">
-            <canvas id='src' width='400' height='400' style='border: 2px solid black'></canvas>
+            <canvas id='src' height='400' style='width: 90%; border: 1px solid black; background-color:white;'></canvas>
         </div>
-        <div class="col-md-6">
-            <img id='image' src="" width="400" height="400" style="border: 2px solid black"></img>
+        <div id="imageArea" class="col-md-6">
         </div>
     </div>
+</div>
+
+<div class="row">
+    <div class="col-md-5">
+        <h4>Chat</h4>
+        <div class="panel panel-primary">
+            <div class="panel-body">
+                <ul id="chatArea" class="chat">
+                    <!-- <li class="clearfix" style="list-style: none;margin: 0;padding: 0;margin-bottom: 10px;padding-bottom: 5px;border-bottom: 1px dotted #B3A9A9;">
+                        <div class="chat-body clearfix">
+                            <span class="time">[05:08:28]</span> <strong style="color:red" class="primary-font">SnoUweR</strong>:<span>Ls</span>
+                        </div>
+                    </li> -->
+
+                </ul>
+            </div>
+            <div class="panel-footer">
+                <div class="input-group">
+                    <input id="chat-input" type="text" class="form-control input-sm" placeholder="Type your message here..." />
+                    <span class="input-group-btn"><button class="btn btn-warning btn-sm" id="btn-chat">Send</button></span>
+                </div>
+            </div>
+        </div>
+    </div>
+</div>
+
 {% endblock %}
 
 {% block onload %}
-<script src='/static/js/sketch.js'></script>
+<script type="text/javascript" src="//code.jquery.com/jquery-migrate-1.2.1.min.js"></script>
+<script type="text/javascript" src='/static/js/sketch.js'></script>
+<script type="text/javascript" src="/static/js/slick.js"></script>
+<script type="text/javascript" src="/static/js/date.js"></script>
 <script type="text/javascript">
+    var me;
+    var connections = {};
+
+    function onClose(event) {
+        console.log("connection closed");
+    }
+
+    function onMessage(event) {
+        var data = JSON.parse(event.data);
+        if(data["kind"] === "drawing"){
+            var image = $("#image-"+data["nickname"]);
+            image.attr("src", data["data"]);
+        } else if (data["kind"] === "newConn") {
+            if(data["nickname"] == "{{nickname}}"){
+                return;
+            }
+            var c = new WebSocket("ws://"+data["ip"]+":8000/ws");
+            c.onclose = onClose;
+            c.onmessage = onMessage;
+            connections[data["nickname"]] = {"ip": data["ip"], "conn": c};
+
+            var form = '<form class="form-horizontal">'+
+                            '<div class="form-group has-success has-feedback">'+
+                                '<div class="col-sm-12">'+
+                                    '<div class="input-group">'+
+                                        '<span class="input-group-addon">@'+data["nickname"]+'</span>' +
+                                        '<input type="text" class="form-control" id="input-'+data["nickname"]+'">' +
+                                        '<span class="input-group-addon">Submit</span>'+
+                                    '</div>'+
+                                '</div>'+
+                            '</div>'+
+                        '</form>';
+            var image = '<img id="image-'+data["nickname"]+'" src="" height="400" style="width: 100%; border: 1px solid black; background-color:white;"></img>';
+            var html = '<div>' + image + ' ' + form + '</div>';
+            $("#imageArea").slick('slickAdd', html);
+        } else if(data["kind"] === "chatMessage") {
+            var d = new Date();
+            var html = '<li class="clearfix" style="list-style: none;margin: 0;padding: 0;margin-bottom: 10px;padding-bottom: 5px;border-bottom: 1px dotted #B3A9A9;">'+
+                            '<div class="chat-body clearfix">'+
+                                '<span class="time">[' + d.getHours() + ':'+ d.getMinutes() +':' + d.getSeconds() + '] </span> <strong style="color:red" class="primary-font">'+data["from"]+'</strong> : <span> '+data["data"]+' </span>'+
+                            '</div>'+
+                        '</li>';
+            $("#chatArea").append(html);
+        }
+    }
+
     $(function() {
-        var conn;
+        var maxPlayers = {{maxPlayers}};
         if(("{{nickname}}" === "")) {
             window.location.href = "/login";
         }
         $('#src').sketch();
-
-        $("#src").on("mouseup", function(e) {
-            var data = $('#src').get(0).toDataURL()
-            conn.send(data);
+        $('#imageArea').slick({
+            slidesToShow: 1,
+            slidesToScroll: 1,
+            accessibility: true,
+            prevArrow: '<button type="button" class="slick-prev">Previous</button>',
+            nextArrow: '<button type="button" class="slick-next">Next</button>'
         });
 
-        if (window["WebSocket"]) {
-            conn = new WebSocket("ws://localhost:8000/ws");
-            conn.onclose = function(evt) {
-                console.log("connection closed");
+        $("#src").on("mouseup", function(e) {
+            var data = $('#src').get(0).toDataURL();
+            var jsonData = {"kind": "drawing", "nickname": "{{nickname}}", "data": data};
+            me.send(JSON.stringify(jsonData));
+        });
+
+        $("#btn-chat").on('click', function(){
+            var chat = $("#chat-input").val();
+            var data = {"kind": "chatMessage", "from": "{{nickname}}", "data": chat};
+            for (var property in connections) {
+                if (connections.hasOwnProperty(property)) {
+                    var sock = connections[property]["conn"];
+                    sock.send(JSON.stringify(data));
+                }
             }
-            conn.onmessage = function(evt) {
-                $('#image').attr("src", evt.data);
+            var chat = $("#chat-input").val('');
+        });
+
+        $.get("{{dns}}/peers/{{roomID}}", function(data){
+            console.log(data);
+            if (!window["WebSocket"]) {
+                alert("Your browser does not support WebSockets. Ending Game");
+                window.location.href = "/logout";
+                return;
             }
-        } else {
-            console.log("Your browser does not support WebSockets");
-        }
+            for(var i=0; i<data.length; i++){
+                if("{{playerIP}}" === data[i][2]){
+                    me = new WebSocket("ws://"+data[i][2]+":8000/ws");
+                    me.onclose = onClose;
+                    me.onmessage = onMessage;
+                } else {
+                    var c = new WebSocket("ws://"+data[i][2]+":8000/ws");
+                    c.onclose = onClose;
+                    c.onmessage = onMessage;
+                    c.onopen = function(event){
+                        var newConnMsg = {"kind": "newConn", "ip": "{{playerIP}}", "nickname": "{{nickname}}"};
+                        c.send(JSON.stringify(newConnMsg));
+                    }
+                    connections[data[i][1]] = {"ip": data[i][2], "conn": c};
+                    var form = '<form class="form-horizontal">'+
+                                    '<div class="form-group has-success has-feedback">'+
+                                        '<div class="col-sm-12">'+
+                                            '<div class="input-group">'+
+                                                '<span class="input-group-addon">@'+data[i][1]+'</span>' +
+                                                '<input type="text" class="form-control" id="input-'+data[i][1]+'">' +
+                                                '<span class="input-group-addon">Submit</span>'+
+                                            '</div>'+
+                                        '</div>'+
+                                    '</div>'+
+                                '</form>';
+                    var image = '<img id="image-'+data[i][1]+'" src="" height="400" style="width: 100%; border: 1px solid black; background-color:white;"></img>';
+                    var html = '<div>' + image + ' ' + form + '</div>';
+                    $("#imageArea").slick('slickAdd', html);
+                }
+            }
+        }, "json");
     });
+
+
 </script>
 {% endblock %}

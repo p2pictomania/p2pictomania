@@ -2,6 +2,7 @@ package web
 
 import (
 	"log"
+	"net/http"
 
 	"github.com/gorilla/websocket"
 )
@@ -16,6 +17,7 @@ type connection struct {
 
 // upgrader is used to upgrade connections to a websocket
 var upgrader = websocket.Upgrader{
+	CheckOrigin:     func(r *http.Request) bool { return true },
 	ReadBufferSize:  1024,
 	WriteBufferSize: 1024,
 }
