@@ -1,12 +1,14 @@
 package web
 
 import (
+	"bufio"
 	"bytes"
 	"encoding/json"
 	"errors"
 	"fmt"
 	"io/ioutil"
 	"log"
+	"math/rand"
 	"net/http"
 	"os"
 	"os/signal"
@@ -20,6 +22,7 @@ import (
 	sql "github.com/otoolep/rqlite/db"
 	httpd "github.com/otoolep/rqlite/http"
 	"github.com/otoolep/rqlite/store"
+	"github.com/p2pictomania/p2pictomania/game"
 )
 
 var tplIndex = pongo2.Must(pongo2.FromFile("web/templates/index.html"))
@@ -33,6 +36,29 @@ var GameStore *store.Store
 
 var quit = make(chan bool, 1)
 var done = make(chan bool, 1)
+
+type setRoundForRoom struct {
+	RoundID int `json:"roundID"`
+	RoomID  int `json:"roomID"`
+}
+
+type selectWordForRound struct {
+	Word     string `json:"word"`
+	RoundID  int    `json:"roundID"`
+	RoomID   int    `json:"roomID"`
+	NickName string `json:"nickName"`
+}
+
+type roundReadyResults struct {
+	Columns []string        `json:"columns"`
+	Time    float64         `json:"time"`
+	Types   []string        `json:"types"`
+	Values  [][]interface{} `json:"values"`
+}
+
+type resultStruct struct {
+	Result string `json:"result"`
+}
 
 // httpError returns a HTTP 5xx error
 func httpError(err error, w http.ResponseWriter) {
@@ -66,6 +92,399 @@ func AuthUser(w http.ResponseWriter, r *http.Request) {
 	}
 	Nickname = name
 	json.NewEncoder(w).Encode(map[string]int{"status": http.StatusOK})
+}
+
+func SetRoundForRoom(w http.ResponseWriter, r *http.Request) {
+	decoder := json.NewDecoder(r.Body)
+	var j setRoundForRoom
+	err := decoder.Decode(&j)
+	if err != nil {
+		log.Println("Could not set round and room")
+		http.Error(w, "Could not set round and room", http.StatusInternalServerError)
+		return
+	}
+
+	leaderIP, err := game.GetRoomLeader(j.RoomID)
+
+	query := "INSERT into round_room_mapping values (" + strconv.Itoa(j.RoundID) + ", " + strconv.Itoa(j.RoomID) + ");"
+	err = game.SqlExecute(query, leaderIP)
+
+	if err != nil {
+		log.Println("Could not set round and room - DB error")
+		http.Error(w, "Could not set round and room - DB error", http.StatusInternalServerError)
+		return
+	}
+
+	json.NewEncoder(w).Encode(map[string]int{"status": http.StatusOK})
+}
+
+func random(min, max int) int {
+	rand.Seed(time.Now().UnixNano())
+	return rand.Intn(max-min) + min
+}
+
+func GetWords(w http.ResponseWriter, r *http.Request) {
+
+	if err := r.ParseForm(); err != nil {
+		log.Println("Invalid room id passed")
+		http.Error(w, "Invalid room id passed", http.StatusInternalServerError)
+		return
+	}
+
+	num := r.Form.Get("num")
+	numint, err := strconv.Atoi(num)
+
+	if err != nil {
+		log.Println("Invalid num parameter")
+		http.Error(w, "Invalid num parameter", http.StatusInternalServerError)
+		return
+	}
+
+	log.Printf("Get %s words requested", num)
+
+	//TODO: move to constants
+	var path string = "game/words.txt"
+
+	file, err := os.Open(path)
+	if err != nil {
+		log.Println("Error while opening game/words.txt")
+		http.Error(w, "Error while opening game/words.txt", http.StatusInternalServerError)
+		return
+	}
+	defer file.Close()
+
+	var lines []string
+	scanner := bufio.NewScanner(file)
+	for scanner.Scan() {
+		lines = append(lines, scanner.Text())
+	}
+
+	log.Println(lines)
+
+	//var words []string
+	var buffer bytes.Buffer
+
+	var i int = 0
+	for ; i < numint; i++ {
+		myrand := random(0, len(lines))
+		//words = append(words, lines[myrand])
+		buffer.WriteString(lines[myrand])
+		if i == numint-1 {
+			continue
+		} else {
+			buffer.WriteString(" ")
+		}
+
+	}
+
+	res := resultStruct{Result: buffer.String()}
+
+	//TODO: return num random words from words.txt
+	json.NewEncoder(w).Encode(res)
+}
+
+func GetRoundForRoom(w http.ResponseWriter, r *http.Request) {
+
+	if err := r.ParseForm(); err != nil {
+		log.Println("Invalid room id passed")
+		http.Error(w, "Invalid room id passed", http.StatusInternalServerError)
+		return
+	}
+
+	roomID := r.Form.Get("roomid")
+	log.Printf("GetRoundForRoom %s requested", roomID)
+
+	roomIDint, err := strconv.Atoi(roomID)
+
+	leaderIP, err := game.GetRoomLeader(roomIDint)
+
+	if err != nil {
+		log.Println("Error while getting room leader")
+		http.Error(w, "Error while getting room leader", http.StatusInternalServerError)
+		return
+	}
+
+	query := "SELECT * from round_room_mapping where room_id=" + roomID + ";"
+	result, err := game.SqlQuery(query, leaderIP)
+
+	if err != nil {
+		log.Println("Couldn't fetch room list")
+		http.Error(w, "Couldn't fetch room list", http.StatusInternalServerError)
+		return
+	}
+
+	jsonData := result.(map[string]interface{})
+	results := jsonData["results"].([]interface{})
+	row := results[0].(map[string]interface{})
+	json.NewEncoder(w).Encode(row)
+}
+
+func SelectWordForRound(w http.ResponseWriter, r *http.Request) {
+	decoder := json.NewDecoder(r.Body)
+	var j selectWordForRound
+	err := decoder.Decode(&j)
+	if err != nil {
+		log.Println("Could not select word for round")
+		http.Error(w, "Could not select word for round", http.StatusInternalServerError)
+		return
+	}
+
+	leaderIP, err := game.GetRoomLeader(j.RoomID)
+
+	query := "INSERT into words_round_mapping values (" + strconv.Itoa(j.RoundID) + ", " + strconv.Itoa(j.RoomID) + ", \"" + j.NickName + "\", \"" + j.Word + "\");"
+	err = game.SqlExecute(query, leaderIP)
+
+	if err != nil {
+		log.Println("Could not select word for round - DB error")
+		http.Error(w, "Could not select word for round - DB error", http.StatusInternalServerError)
+		return
+	}
+
+	json.NewEncoder(w).Encode(map[string]int{"status": http.StatusOK})
+}
+
+func CheckGuess(w http.ResponseWriter, r *http.Request) {
+
+	if err := r.ParseForm(); err != nil {
+		log.Println("Invalid request")
+		http.Error(w, "Invalid request", http.StatusInternalServerError)
+		return
+	}
+
+	roomID := r.Form.Get("roomid")
+	roundID := r.Form.Get("roundid")
+	guess := r.Form.Get("guess")
+	drawer := r.Form.Get("drawer")
+
+	log.Printf("Check guess %s - %s requested", roundID, guess)
+
+	roomIDint, err := strconv.Atoi(roomID)
+
+	leaderIP, err := game.GetRoomLeader(roomIDint)
+
+	if err != nil {
+		log.Println("Error while getting room leader")
+		http.Error(w, "Error while getting room leader", http.StatusInternalServerError)
+		return
+	}
+
+	query := "SELECT word from words_round_mapping where room_id=" + roomID + " and round_id=" + roundID + " and player_name=\"" + drawer + "\";"
+	result, err := game.SqlQuery(query, leaderIP)
+
+	if err != nil {
+		log.Println("Could not check guess from db")
+		http.Error(w, "Could not check guess from db", http.StatusInternalServerError)
+		return
+	}
+
+	jsonData := result.(map[string]interface{})
+	results := jsonData["results"].([]interface{})
+	row := results[0].(map[string]interface{})
+	valuesArr := row["values"].([]interface{})
+	valueRow := valuesArr[0].([]interface{})
+
+	//TODO: type assertion needs fixing
+	var value string = (valueRow[0]).(string)
+
+	if value == guess {
+		res := resultStruct{Result: "true"}
+		json.NewEncoder(w).Encode(res)
+	} else {
+		res := resultStruct{Result: "false"}
+		json.NewEncoder(w).Encode(res)
+	}
+
+}
+
+func GetScore(w http.ResponseWriter, r *http.Request) {
+
+	if err := r.ParseForm(); err != nil {
+		log.Println("Invalid request")
+		http.Error(w, "Invalid request", http.StatusInternalServerError)
+		return
+	}
+
+	roomID := r.Form.Get("roomid")
+	drawer := r.Form.Get("drawer")
+
+	log.Printf("Get Score for %s - %s requested", drawer, roomID)
+
+	roomIDint, err := strconv.Atoi(roomID)
+
+	leaderIP, err := game.GetRoomLeader(roomIDint)
+
+	if err != nil {
+		log.Println("Error while getting room leader")
+		http.Error(w, "Error while getting room leader", http.StatusInternalServerError)
+		return
+	}
+
+	query := "SELECT score from player_score_mapping where room_id=" + roomID + " and player_name=\"" + drawer + "\";"
+	result, err := game.SqlQuery(query, leaderIP)
+
+	if err != nil {
+		log.Println("Could not check guess from db")
+		http.Error(w, "Could not check guess from db", http.StatusInternalServerError)
+		return
+	}
+
+	jsonData := result.(map[string]interface{})
+	results := jsonData["results"].([]interface{})
+	row := results[0].(map[string]interface{})
+
+	valuesArr := row["values"].([]interface{})
+	valueRow := valuesArr[0].([]interface{})
+
+	//TODO: type assertion needs fixing
+	var value float64 = (valueRow[0]).(float64)
+	var intvalue = int(value)
+	var stringvalue = strconv.Itoa(intvalue)
+	res := resultStruct{Result: stringvalue}
+	json.NewEncoder(w).Encode(res)
+
+}
+
+func SetScore(w http.ResponseWriter, r *http.Request) {
+
+	if err := r.ParseForm(); err != nil {
+		log.Println("Invalid request")
+		http.Error(w, "Invalid request", http.StatusInternalServerError)
+		return
+	}
+
+	roomID := r.Form.Get("roomid")
+	drawer := r.Form.Get("drawer")
+	score := r.Form.Get("score")
+
+	log.Printf("Set Score for %s - %s requested", drawer, roomID)
+
+	roomIDint, err := strconv.Atoi(roomID)
+
+	leaderIP, err := game.GetRoomLeader(roomIDint)
+
+	if err != nil {
+		log.Println("Error while getting room leader")
+		http.Error(w, "Error while getting room leader", http.StatusInternalServerError)
+		return
+	}
+
+	query := "INSERT into player_score_mapping values (" + roomID + ", \"" + drawer + "\", " + score + ");"
+	err = game.SqlExecute(query, leaderIP)
+
+	if err != nil {
+		log.Println("Could not set round and room - DB error")
+		http.Error(w, "Could not set round and room - DB error", http.StatusInternalServerError)
+		return
+	}
+
+	json.NewEncoder(w).Encode(map[string]int{"status": http.StatusOK})
+
+}
+
+/*
+func UpdateScore(w http.ResponseWriter, r *http.Request) {
+
+	if err := r.ParseForm(); err != nil {
+		log.Println("Invalid request")
+		http.Error(w, "Invalid request", http.StatusInternalServerError)
+		return
+	}
+
+	roomID := r.Form.Get("roomid")
+	drawer := r.Form.Get("drawer")
+	guessor := r.Form.Get("guessor")
+	log.Printf("Update Score for %s requested", roomID)
+
+	roomIDint, err := strconv.Atoi(roomID)
+
+	leaderIP, err := game.GetRoomLeader(roomIDint)
+
+	if err != nil {
+		log.Println("Error while getting room leader")
+		http.Error(w, "Error while getting room leader", http.StatusInternalServerError)
+		return
+	}
+
+	query := "UPDATE player_score_mapping SET score = score + 10 where room_id=" + roomID + " and (nick=\"" + drawer + "\" or nick=\"" + guessor + "\");"
+	result, err := game.SqlQuery(query, leaderIP)
+	_ = result
+	if err != nil {
+		log.Println("Could not update score in db")
+		http.Error(w, "Could not update score db", http.StatusInternalServerError)
+		return
+	}
+
+	//	jsonData := result.(map[string]interface{})
+	//	results := jsonData["results"].([]interface{})
+	//	row := results[0].(map[string]interface{})
+
+	//TODO: return status 200
+
+	json.NewEncoder(w).Encode(map[string]int{"status": http.StatusOK})
+}
+*/
+
+func IsRoundReady(w http.ResponseWriter, r *http.Request) {
+
+	if err := r.ParseForm(); err != nil {
+		log.Println("Unable to parse request")
+		http.Error(w, "Unable to parse request", http.StatusInternalServerError)
+		return
+	}
+
+	roomID := r.Form.Get("roomid")
+	roundID := r.Form.Get("roundid")
+	num_members := r.Form.Get("num")
+	num_members_int, err := strconv.Atoi(num_members)
+
+	if err != nil {
+		log.Println("Unable to parse num")
+		http.Error(w, "Unable to parse num", http.StatusInternalServerError)
+		return
+	}
+
+	log.Printf("RoundReady check for %s requested", roomID)
+
+	roomIDint, err := strconv.Atoi(roomID)
+
+	leaderIP, err := game.GetRoomLeader(roomIDint)
+
+	if err != nil {
+		log.Println("Error while getting room leader")
+		http.Error(w, "Error while getting room leader", http.StatusInternalServerError)
+		return
+	}
+
+	query := "SELECT COUNT(*) from words_round_mapping where room_id=" + roomID + " and round_id=" + roundID + ";"
+	result, err := game.SqlQuery(query, leaderIP)
+
+	if err != nil {
+		log.Println("Could not check for round readiness")
+		http.Error(w, "Could not check for round readiness", http.StatusInternalServerError)
+		return
+	}
+
+	jsonData := result.(map[string]interface{})
+	results := jsonData["results"].([]interface{})
+	row := results[0].(map[string]interface{})
+	valuesArr := row["values"].([]interface{})
+	valueRow := valuesArr[0].([]interface{})
+
+	//TODO: type assertion needs fixing
+	var value float64 = (valueRow[0]).(float64)
+
+	//var value int = 0
+
+	if int(value) == num_members_int {
+		res := resultStruct{Result: "true"}
+		json.NewEncoder(w).Encode(res)
+
+	} else {
+		//return false
+		res := resultStruct{Result: "false"}
+		json.NewEncoder(w).Encode(res)
+	}
+
 }
 
 // Logout is used to set the current user

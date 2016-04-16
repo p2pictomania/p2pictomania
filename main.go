@@ -5,6 +5,7 @@ import (
 	"fmt"
 	"github.com/p2pictomania/p2pictomania/bootstrap"
 	"github.com/p2pictomania/p2pictomania/connections"
+	"github.com/p2pictomania/p2pictomania/game"
 	"github.com/p2pictomania/p2pictomania/web"
 	"log"
 	"os"
@@ -60,6 +61,7 @@ func main() {
 
 	go web.StartServer()
 	go bootstrap.StartServer()
+	go game.StartServer()
 
 	connections.InitSocketCache(&connections.Sc)
 	go connections.ServerListener(connections.NodeListenPort)
@@ -95,7 +97,35 @@ func main() {
 				continue
 			}
 
+			membersList, numMembers, errRoom := connections.QueryRoom(input)
+
+			if errRoom != nil {
+				log.Println(errRoom)
+				continue
+			}
+
 			connections.JoinRoom(connections.NodeNickName, strconv.Itoa(input))
+
+			if numMembers == 0 {
+				go game.SetupDB("")
+			} else {
+				listofRoomNodes := []string{}
+
+				for i := 0; i < numMembers; i++ {
+					listofRoomNodes = append(listofRoomNodes, membersList[i].IP)
+				}
+
+				log.Println("List of room nodes=")
+				log.Println(listofRoomNodes)
+				leaderIP, err := game.GetLeaderIP(listofRoomNodes)
+				// If no leaderIP found assume all nodes in the bootstrap to be dead
+				// bind self
+				if err != nil {
+					log.Printf("No leader IP found : %s", err)
+					go game.SetupDB("")
+				}
+				go game.SetupDB(leaderIP)
+			}
 
 		case "send\n":
 			fmt.Println("Enter data:")

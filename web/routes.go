@@ -73,4 +73,52 @@ var routes = Routes{
 		"/ws",
 		HandleSocketConn,
 	},
+	Route{
+		"SetRoundForRoom",
+		"POST",
+		"/setround",
+		SetRoundForRoom,
+	},
+	Route{
+		"GetRoundForRoom",
+		"GET",
+		"/getround",
+		GetRoundForRoom,
+	},
+	Route{
+		"SelectWordForRound",
+		"POST",
+		"/selectword",
+		SelectWordForRound,
+	},
+	Route{
+		"IsRoundReady",
+		"GET",
+		"/isroundready",
+		IsRoundReady,
+	},
+	Route{
+		"CheckGuess",
+		"GET",
+		"/checkguess",
+		CheckGuess,
+	},
+	Route{
+		"GetWords",
+		"GET",
+		"/getwords",
+		GetWords,
+	},
+	Route{
+		"SetScore",
+		"GET",
+		"/setscore",
+		SetScore,
+	},
+	Route{
+		"GetScore",
+		"GET",
+		"/getscore",
+		GetScore,
+	},
 }
