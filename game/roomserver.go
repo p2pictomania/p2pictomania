@@ -5,17 +5,11 @@ import (
 	"encoding/json"
 	"errors"
 	"fmt"
-	sql "github.com/otoolep/rqlite/db"
-	httpd "github.com/otoolep/rqlite/http"
-	"github.com/otoolep/rqlite/store"
-	"github.com/p2pictomania/p2pictomania/connections"
 	"io/ioutil"
 	"log"
 	"net/http"
 	"net/url"
 	"os"
-	"os/signal"
-	"path/filepath"
 	"strconv"
 	"strings"
 	"time"
@@ -74,14 +68,15 @@ func dbExists(path string) bool {
 	return true
 }
 
-func initTables() {
+// InitTables initializes tables
+func InitTables() {
 	query := "[" +
 		"\"CREATE TABLE `round_room_mapping` (`round_id` INTEGER NOT NULL, `room_id` INTEGER NOT NULL, UNIQUE (`room_id`, `round_id`) ON CONFLICT REPLACE);\"," +
 		"\"CREATE TABLE `words_round_mapping` (`round_id` INTEGER NOT NULL, `room_id` INTEGER NOT NULL, `player_name` TEXT NOT NULL, `word` TEXT NOT NULL, UNIQUE (`round_id`, `player_name`, `word`) ON CONFLICT REPLACE);\"," +
 		"\"CREATE TABLE `player_score_mapping` (`room_id` INTEGER NOT NULL, `player_name` TEXT NOT NULL, `score` INTEGER, UNIQUE (`room_id`, `player_name`) ON CONFLICT REPLACE);\"" +
 		"]"
 
-	url := "http://localhost:" + strconv.Itoa(DBApiPort) + "/" + "db/execute?pretty&timings"
+	url := "http://localhost:" + strconv.Itoa(GameDBApiPort) + "/" + "db/execute?pretty&timings"
 	var jsonStr = []byte(query)
 	req, err := http.NewRequest("POST", url, bytes.NewBuffer(jsonStr))
 	req.Close = true
@@ -119,20 +114,16 @@ func initTables() {
 
 func GetRoomLeader(roomID int) (string, error) {
 
-	membersList, numMembers, errRoom := connections.QueryRoom(roomID)
-
-	if errRoom != nil {
-		return "", errRoom
+	values, _ := GetListOfPlayersForRoom(strconv.Itoa(roomID))
+	var listofRoomNodes []string
+	for _, val := range values {
+		row := val.([]interface{})
+		listofRoomNodes = append(listofRoomNodes, row[2].(string))
 	}
+	numMembers := len(listofRoomNodes)
 
 	if numMembers == 0 {
 		return "", errors.New("no room members found")
-	}
-
-	listofRoomNodes := []string{}
-
-	for i := 0; i < numMembers; i++ {
-		listofRoomNodes = append(listofRoomNodes, membersList[i].IP)
 	}
 
 	log.Println("List of room nodes=")
@@ -147,10 +138,11 @@ func GetRoomLeader(roomID int) (string, error) {
 
 }
 
+// SqlQuery does shit
 func SqlQuery(query string, leaderIP string) (interface{}, error) {
 	//listOfBootstrapNodes, _ := net.LookupHost(Config.DNS)
 
-	u := "http://" + leaderIP + ":" + strconv.Itoa(DBApiPort) + "/" + "db/query?pretty&timings"
+	u := "http://" + leaderIP + ":" + strconv.Itoa(GameDBApiPort) + "/" + "db/query?pretty&timings"
 	// u := "http://" + Config.DNS + ":" + strconv.Itoa(DBApiPort) + "/" + "db/query?pretty&timings"
 	var endpoint *url.URL
 	endpoint, err := url.Parse(u)
@@ -186,10 +178,11 @@ func SqlQuery(query string, leaderIP string) (interface{}, error) {
 	return data, nil
 }
 
+// SqlExecute does shit
 func SqlExecute(query string, leaderIP string) error {
 	//listOfBootstrapNodes, _ := net.LookupHost(Config.DNS)
 
-	url := "http://" + leaderIP + ":" + strconv.Itoa(DBApiPort) + "/" + "db/execute?pretty&timings"
+	url := "http://" + leaderIP + ":" + strconv.Itoa(GameDBApiPort) + "/" + "db/execute?pretty&timings"
 	jsonStr, _ := json.Marshal([]string{query})
 	req, err := http.NewRequest("POST", url, bytes.NewBuffer(jsonStr))
 	req.Close = true
@@ -231,11 +224,11 @@ func SqlExecute(query string, leaderIP string) error {
 
 func join(joinAddr, raftAddr string) error {
 	publicIP, _ := getPublicIP()
-	b, err := json.Marshal(map[string]string{"addr": publicIP + ":" + strconv.Itoa(DBRaftPort)})
+	b, err := json.Marshal(map[string]string{"addr": publicIP + ":" + strconv.Itoa(GameDBRaftPort)})
 	if err != nil {
 		return err
 	}
-	resp, err := http.Post(fmt.Sprintf("http://%s:%d/join", joinAddr, DBApiPort), "application-type/json", bytes.NewReader(b))
+	resp, err := http.Post(fmt.Sprintf("http://%s:%d/join", joinAddr, GameDBApiPort), "application-type/json", bytes.NewReader(b))
 	if err != nil {
 		return err
 	}
@@ -249,7 +242,7 @@ func waitForAPIStartAndLeader() {
 	client := http.Client{
 		Timeout: timeout,
 	}
-	url := fmt.Sprintf("http://127.0.0.1:%d/status", DBApiPort)
+	url := fmt.Sprintf("http://127.0.0.1:%d/status", GameDBApiPort)
 	res, err := client.Get(url)
 	if err != nil {
 		log.Fatalf("Could not reach api server - Timed out : %s", err)
@@ -259,57 +252,7 @@ func waitForAPIStartAndLeader() {
 	defer res.Body.Close()
 }
 
-func SetupDB(joinAddr string) {
-	if dbExists(DBFolder) {
-		os.RemoveAll(DBFolder)
-	}
-	dataPath := DBFolder
-	httpAddr := ":" + strconv.Itoa(DBApiPort)
-	raftAddr := ":" + strconv.Itoa(DBRaftPort)
-	disRedirect := true
-	dataPath, err := filepath.Abs(dataPath)
-	if err != nil {
-		log.Fatalf("failed to determine absolute data path: %s", err.Error())
-	}
-	dbConf := sql.NewConfig()
-	dbConf.DSN = ""
-	dbConf.Memory = false
-	store := store.New(dbConf, dataPath, raftAddr)
-	if err := store.Open(joinAddr == ""); err != nil {
-		log.Fatalf("failed to open store: %s", err.Error())
-	}
-
-	// If join was specified, make the join request.
-	if joinAddr != "" {
-		if err := join(joinAddr, raftAddr); err != nil {
-			log.Fatalf("failed to join node at %s: %s", joinAddr, err.Error())
-		}
-	}
-
-	// Create the HTTP query server.
-	s := httpd.New(httpAddr, store)
-	s.DisableRedirect = disRedirect
-	if err := s.Start(); err != nil {
-		log.Fatalf("failed to start HTTP server: %s", err.Error())
-
-	}
-
-	if joinAddr == "" {
-		// if fresh DB.. initialize all tables
-		waitForAPIStartAndLeader()
-		initTables()
-	}
-
-	terminate := make(chan os.Signal, 1)
-	signal.Notify(terminate, os.Interrupt)
-	<-terminate
-	if err := store.Close(); err != nil {
-		log.Printf("failed to close store: %s", err.Error())
-	}
-	log.Println("rqlite server stopped")
-	os.Exit(0)
-}
-
+// StartServer does shit
 func StartServer() {
 	Config = parseConfigFile()
 	log.Printf("config=%+v\n", Config)
