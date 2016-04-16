@@ -676,10 +676,6 @@ func waitForAPIStartAndLeader() {
 	defer res.Body.Close()
 }
 
-func initTables() {
-
-}
-
 func getLeaderIP(listOfNodes []string) (string, error) {
 	for _, ip := range listOfNodes {
 		url := fmt.Sprintf("http://%s:%d/status", ip, GameDBApiPort)
@@ -757,7 +753,7 @@ func setupGameDB(joinAddr string) {
 	if joinAddr == "" {
 		// if fresh DB.. initialize all tables
 		waitForAPIStartAndLeader()
-		initTables()
+		game.InitTables()
 	}
 
 	terminate := make(chan os.Signal, 1)
