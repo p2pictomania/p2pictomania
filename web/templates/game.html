@@ -37,6 +37,7 @@
                     <div class="col-sm-12">
                         <div class="input-group">
                             <span class="input-group-addon">@You</span>
+                            <input type="text" class="form-control" value="Your word is:" disabled>
                             <span id="selfWord" class="input-group-addon"></span>
                         </div>
                     </div>
@@ -202,7 +203,8 @@
             // increment round num
             currentRound += 1;
             // set round num
-            $.post("/setround", {"roomID": {{roomID}}, "roundID": currentRound}, function(data){
+            var payload = {"roomID": {{roomID}}, "roundID": currentRound};
+            $.post("/setround", JSON.stringify(payload), function(data){
                 startRound();
             }).fail(function(){
                 alert("Could not update room number");

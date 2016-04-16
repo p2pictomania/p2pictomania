@@ -100,7 +100,7 @@ func SetRoundForRoom(w http.ResponseWriter, r *http.Request) {
 	var j setRoundForRoom
 	err := decoder.Decode(&j)
 	if err != nil {
-		log.Println("Could not set round and room")
+		log.Println("Could not set round and room: " + err.Error())
 		http.Error(w, "Could not set round and room", http.StatusInternalServerError)
 		return
 	}
