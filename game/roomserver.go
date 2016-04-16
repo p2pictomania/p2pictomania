@@ -96,7 +96,6 @@ func InitTables() {
 	// check for execution response
 	content, err := ioutil.ReadAll(resp.Body)
 
-	log.Println("Response from initTable=" + string(content))
 	var j interface{}
 	err = json.Unmarshal(content, &j)
 	if err != nil {
@@ -110,11 +109,19 @@ func InitTables() {
 			log.Fatalf("Could not execute query %d in querySet %s : %s", i, query, val)
 		}
 	}
+	log.Println("Room DB tables initialized")
 }
 
+// GetRoomLeader foo
 func GetRoomLeader(roomID int) (string, error) {
 
-	values, _ := GetListOfPlayersForRoom(strconv.Itoa(roomID))
+	values, err := GetListOfPlayersForRoom(strconv.Itoa(roomID))
+	if err != nil {
+		log.Println("Could not get list of peers for room :" + err.Error())
+		return "", err
+	}
+	log.Println("List of IPs for Room: ")
+	log.Println(values)
 	var listofRoomNodes []string
 	for _, val := range values {
 		row := val.([]interface{})

@@ -16,10 +16,32 @@
 {% endblock %}
 
 {% block content %}
-<div class="jumbotron" style="background-color: rgba(211, 211, 211, 0.76);">
+<div class="jumbotron" id="messageArea" style="background-color: rgba(211, 211, 211, 0.76);">
+    <div class="row">
+        <div class="col-md-12">
+            <h3>Waiting for other players to start round.</h3>
+        </div>
+    </div>
+</div>
+<div class="jumbotron" id="gameArea" style="background-color: rgba(211, 211, 211, 0.76); display:none">
+    <div class="row">
+        <div class="col-md-12">
+            <div class="countdown"></div>
+        </div>
+    </div>
     <div class="row">
         <div class="col-md-6">
             <canvas id='src' height='400' style='width: 90%; border: 1px solid black; background-color:white;'></canvas>
+            <form class="form-horizontal">
+                <div class="form-group has-success has-feedback">
+                    <div class="col-sm-12">
+                        <div class="input-group">
+                            <span class="input-group-addon">@You</span>
+                            <span id="selfWord" class="input-group-addon"></span>
+                        </div>
+                    </div>
+                </div>
+            </form>
         </div>
         <div id="imageArea" class="col-md-6">
         </div>
@@ -32,12 +54,6 @@
         <div class="panel panel-primary">
             <div class="panel-body">
                 <ul id="chatArea" class="chat">
-                    <!-- <li class="clearfix" style="list-style: none;margin: 0;padding: 0;margin-bottom: 10px;padding-bottom: 5px;border-bottom: 1px dotted #B3A9A9;">
-                        <div class="chat-body clearfix">
-                            <span class="time">[05:08:28]</span> <strong style="color:red" class="primary-font">SnoUweR</strong>:<span>Ls</span>
-                        </div>
-                    </li> -->
-
                 </ul>
             </div>
             <div class="panel-footer">
@@ -57,9 +73,51 @@
 <script type="text/javascript" src='/static/js/sketch.js'></script>
 <script type="text/javascript" src="/static/js/slick.js"></script>
 <script type="text/javascript" src="/static/js/date.js"></script>
+<script type="text/javascript" src="/static/js/jquery.countdown.min.js"></script>
 <script type="text/javascript">
     var me;
     var connections = {};
+    var currentRound = 0;
+
+    function startRoundWhenReady(){
+        $.ajax({
+            type: "GET",
+            url: "/isroundready?roundid="+currentRound+"&roomid={{roomID}}&num={{maxPlayers}}",
+            dataType: "json",
+            success: function (data) {
+                $("#gameArea").show();
+                $("#messageArea").hide();
+                $('.countdown').data('countdown').update(+(new Date) + 90000).start();
+            },
+            error: function () {
+                setTimeout(function () {
+                    startRoundWhenReady();
+                }, 2000)
+            }
+        });
+    }
+
+    function startRound() {
+        $.get("/getround?roomid={{roomID}}", function(data){
+            var jsonData = JSON.parse(data);
+            currentRound = jsonData["roundNum"];
+            $.get("/getwords?num=1", function(data){
+                var jsonData = JSON.parse(data);
+                var word = jsonData["result"];
+                $('#selfWord').html(word);
+                var payload = {"word": word, "roundID":currentRound, "roomID": {{roomID}}, "nickName": "{{nickname}}"};
+                $.post("/selectword", JSON.stringify(payload), function(data){
+                    startRoundWhenReady();
+                }).fail(function(){
+                    alert("couldn't update own word to leader");
+                });
+            }).fail(function(){
+                alert("couldn't get work for next round");
+            });;
+        }).fail(function(){
+            alert("couldn't get next round number");
+        });;
+    }
 
     function onClose(event) {
         console.log("connection closed");
@@ -78,6 +136,9 @@
             c.onclose = onClose;
             c.onmessage = onMessage;
             connections[data["nickname"]] = {"ip": data["ip"], "conn": c};
+            if(Object.keys(connections).length == {{maxPlayers}} - 1) {
+                startRound();
+            }
 
             var form = '<form class="form-horizontal">'+
                             '<div class="form-group has-success has-feedback">'+
@@ -90,7 +151,7 @@
                                 '</div>'+
                             '</div>'+
                         '</form>';
-            var image = '<img id="image-'+data["nickname"]+'" src="" height="400" style="width: 100%; border: 1px solid black; background-color:white;"></img>';
+            var image = '<img id="image-'+data["nickname"]+'" class="playerImages" src="" height="400" style="width: 100%; border: 1px solid black; background-color:white;"></img>';
             var html = '<div>' + image + ' ' + form + '</div>';
             $("#imageArea").slick('slickAdd', html);
         } else if(data["kind"] === "chatMessage") {
@@ -117,6 +178,41 @@
             prevArrow: '<button type="button" class="slick-prev">Previous</button>',
             nextArrow: '<button type="button" class="slick-next">Next</button>'
         });
+
+        $('.countdown').countdown({
+          date: +(new Date) + 90000,
+          render: function(data) {
+            $(this.el).text(this.leadingZeros(data.min, 2) + ":" + this.leadingZeros(data.sec, 2));
+            if(data.min == 0 && data.sec == 10) {
+                $(this.el).addClass('ending');
+            }
+          },
+          onEnd: function() {
+            $(this.el).removeClass('ending');
+            $(this.el).addClass('ended');
+            //hide canvas and clear images
+            $("#gameArea").hide();
+            $("#messageArea").show();
+            var c = document.getElementById("src");
+            var ctx = c.getContext("2d");
+            ctx.clearRect(0, 0, c.width, c.height);
+            $(".playerImages").each(function(){
+                $(this).attr('src', '');
+            });
+            // increment round num
+            currentRound += 1;
+            // set round num
+            $.post("/setround", {"roomID": {{roomID}}, "roundID": currentRound}, function(data){
+                startRound();
+            }).fail(function(){
+                alert("Could not update room number");
+            });
+
+
+          }
+        });
+
+        $('.countdown').data('countdown').stop();
 
         $("#src").on("mouseup", function(e) {
             var data = $('#src').get(0).toDataURL();
@@ -152,6 +248,9 @@
                         c.send(JSON.stringify(newConnMsg));
                     }
                     connections[data[i][1]] = {"ip": data[i][2], "conn": c};
+                    if(Object.keys(connections).length == {{maxPlayers}} - 1) {
+                        $("#gameArea").show();
+                    }
                     var form = '<form class="form-horizontal">'+
                                     '<div class="form-group has-success has-feedback">'+
                                         '<div class="col-sm-12">'+
@@ -163,7 +262,7 @@
                                         '</div>'+
                                     '</div>'+
                                 '</form>';
-                    var image = '<img id="image-'+data[i][1]+'" src="" height="400" style="width: 100%; border: 1px solid black; background-color:white;"></img>';
+                    var image = '<img id="image-'+data[i][1]+'" class="playerImages" src="" height="400" style="width: 100%; border: 1px solid black; background-color:white;"></img>';
                     var html = '<div>' + image + ' ' + form + '</div>';
                     $("#imageArea").slick('slickAdd', html);
                 }

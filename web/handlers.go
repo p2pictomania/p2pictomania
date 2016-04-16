@@ -94,6 +94,7 @@ func AuthUser(w http.ResponseWriter, r *http.Request) {
 	json.NewEncoder(w).Encode(map[string]int{"status": http.StatusOK})
 }
 
+// SetRoundForRoom foo
 func SetRoundForRoom(w http.ResponseWriter, r *http.Request) {
 	decoder := json.NewDecoder(r.Body)
 	var j setRoundForRoom
@@ -105,8 +106,9 @@ func SetRoundForRoom(w http.ResponseWriter, r *http.Request) {
 	}
 
 	leaderIP, err := game.GetRoomLeader(j.RoomID)
-
+	log.Println("Room leader IP: " + leaderIP)
 	query := "INSERT into round_room_mapping values (" + strconv.Itoa(j.RoundID) + ", " + strconv.Itoa(j.RoomID) + ");"
+	log.Println("running query : " + query)
 	err = game.SqlExecute(query, leaderIP)
 
 	if err != nil {
@@ -123,6 +125,7 @@ func random(min, max int) int {
 	return rand.Intn(max-min) + min
 }
 
+// GetWords foo
 func GetWords(w http.ResponseWriter, r *http.Request) {
 
 	if err := r.ParseForm(); err != nil {
@@ -143,7 +146,7 @@ func GetWords(w http.ResponseWriter, r *http.Request) {
 	log.Printf("Get %s words requested", num)
 
 	//TODO: move to constants
-	var path string = "game/words.txt"
+	var path = "game/words.txt"
 
 	file, err := os.Open(path)
 	if err != nil {
@@ -164,7 +167,7 @@ func GetWords(w http.ResponseWriter, r *http.Request) {
 	//var words []string
 	var buffer bytes.Buffer
 
-	var i int = 0
+	var i = 0
 	for ; i < numint; i++ {
 		myrand := random(0, len(lines))
 		//words = append(words, lines[myrand])
@@ -183,6 +186,7 @@ func GetWords(w http.ResponseWriter, r *http.Request) {
 	json.NewEncoder(w).Encode(res)
 }
 
+// GetRoundForRoom does shit
 func GetRoundForRoom(w http.ResponseWriter, r *http.Request) {
 
 	if err := r.ParseForm(); err != nil {
@@ -197,6 +201,7 @@ func GetRoundForRoom(w http.ResponseWriter, r *http.Request) {
 	roomIDint, err := strconv.Atoi(roomID)
 
 	leaderIP, err := game.GetRoomLeader(roomIDint)
+	log.Println("Got room leader IP as " + leaderIP)
 
 	if err != nil {
 		log.Println("Error while getting room leader")
@@ -216,9 +221,13 @@ func GetRoundForRoom(w http.ResponseWriter, r *http.Request) {
 	jsonData := result.(map[string]interface{})
 	results := jsonData["results"].([]interface{})
 	row := results[0].(map[string]interface{})
-	json.NewEncoder(w).Encode(row)
+	values := row["values"].([]interface{})
+	value := values[0].([]interface{})
+	roundNum := value[0].(float64)
+	json.NewEncoder(w).Encode(map[string]float64{"roundNum": roundNum})
 }
 
+//SelectWordForRound does shit
 func SelectWordForRound(w http.ResponseWriter, r *http.Request) {
 	decoder := json.NewDecoder(r.Body)
 	var j selectWordForRound
@@ -243,6 +252,7 @@ func SelectWordForRound(w http.ResponseWriter, r *http.Request) {
 	json.NewEncoder(w).Encode(map[string]int{"status": http.StatusOK})
 }
 
+// CheckGuess does shit
 func CheckGuess(w http.ResponseWriter, r *http.Request) {
 
 	if err := r.ParseForm(); err != nil {
@@ -284,7 +294,7 @@ func CheckGuess(w http.ResponseWriter, r *http.Request) {
 	valueRow := valuesArr[0].([]interface{})
 
 	//TODO: type assertion needs fixing
-	var value string = (valueRow[0]).(string)
+	var value = (valueRow[0]).(string)
 
 	if value == guess {
 		res := resultStruct{Result: "true"}
@@ -296,6 +306,7 @@ func CheckGuess(w http.ResponseWriter, r *http.Request) {
 
 }
 
+// GetScore does shit
 func GetScore(w http.ResponseWriter, r *http.Request) {
 
 	if err := r.ParseForm(); err != nil {
@@ -336,7 +347,7 @@ func GetScore(w http.ResponseWriter, r *http.Request) {
 	valueRow := valuesArr[0].([]interface{})
 
 	//TODO: type assertion needs fixing
-	var value float64 = (valueRow[0]).(float64)
+	var value = (valueRow[0]).(float64)
 	var intvalue = int(value)
 	var stringvalue = strconv.Itoa(intvalue)
 	res := resultStruct{Result: stringvalue}
@@ -344,6 +355,7 @@ func GetScore(w http.ResponseWriter, r *http.Request) {
 
 }
 
+// SetScore foo
 func SetScore(w http.ResponseWriter, r *http.Request) {
 
 	if err := r.ParseForm(); err != nil {
@@ -424,6 +436,7 @@ func UpdateScore(w http.ResponseWriter, r *http.Request) {
 }
 */
 
+// IsRoundReady does shit
 func IsRoundReady(w http.ResponseWriter, r *http.Request) {
 
 	if err := r.ParseForm(); err != nil {
@@ -434,8 +447,8 @@ func IsRoundReady(w http.ResponseWriter, r *http.Request) {
 
 	roomID := r.Form.Get("roomid")
 	roundID := r.Form.Get("roundid")
-	num_members := r.Form.Get("num")
-	num_members_int, err := strconv.Atoi(num_members)
+	numMembers := r.Form.Get("num")
+	numMembersInt, err := strconv.Atoi(numMembers)
 
 	if err != nil {
 		log.Println("Unable to parse num")
@@ -471,18 +484,19 @@ func IsRoundReady(w http.ResponseWriter, r *http.Request) {
 	valueRow := valuesArr[0].([]interface{})
 
 	//TODO: type assertion needs fixing
-	var value float64 = (valueRow[0]).(float64)
+	var value = (valueRow[0]).(float64)
 
 	//var value int = 0
 
-	if int(value) == num_members_int {
+	if int(value) == numMembersInt {
 		res := resultStruct{Result: "true"}
 		json.NewEncoder(w).Encode(res)
 
 	} else {
 		//return false
-		res := resultStruct{Result: "false"}
-		json.NewEncoder(w).Encode(res)
+		// res := resultStruct{Result: "false"}
+		// json.NewEncoder(w).Encode(res)
+		http.Error(w, "Room not ready", http.StatusInternalServerError)
 	}
 
 }
@@ -542,7 +556,7 @@ func Game(w http.ResponseWriter, r *http.Request) {
 		return
 	}
 	if len(listOfPlayers) == 1 {
-		go setupGameDB("")
+		go setupGameDB("", roomID)
 		markRoomAsOpen(roomID)
 	} else {
 		listOfIPs := getListOfIPs(listOfPlayers)
@@ -551,7 +565,7 @@ func Game(w http.ResponseWriter, r *http.Request) {
 			httpError(err, w)
 			return
 		}
-		go setupGameDB(leaderIP)
+		go setupGameDB(leaderIP, roomID)
 	}
 
 	err = tplGame.ExecuteWriter(pongo2.Context{"nickname": Nickname,
@@ -703,7 +717,28 @@ func getLeaderIP(listOfNodes []string) (string, error) {
 	return "", errors.New("Could not find bootstrap hosts")
 }
 
-func setupGameDB(joinAddr string) {
+//startRoomRound sets round for room as 1 as this is only called by the starting node
+func startRoomRound(roomID string) error {
+	url := "http://localhost:8000/setround"
+	rID, _ := strconv.Atoi(roomID)
+	b, err := json.Marshal(map[string]int{"roundID": 1, "roomID": rID})
+	if err != nil {
+		log.Println("Could not set round number as 1: " + err.Error())
+		return err
+	}
+	resp, err := http.Post(url, "application-type/json", bytes.NewReader(b))
+	contents, _ := ioutil.ReadAll(resp.Body)
+	defer resp.Body.Close()
+	log.Println("resp for setting round as 1: " + string(contents))
+	if err != nil {
+		log.Println("Could not set round number as 1: " + err.Error())
+		return err
+	}
+	log.Println("Set round number as 1")
+	return nil
+}
+
+func setupGameDB(joinAddr string, roomID string) {
 	log.Println("setting up db")
 	log.Println(GameStore)
 	if GameStore != nil {
@@ -754,6 +789,7 @@ func setupGameDB(joinAddr string) {
 		// if fresh DB.. initialize all tables
 		waitForAPIStartAndLeader()
 		game.InitTables()
+		startRoomRound(roomID)
 	}
 
 	terminate := make(chan os.Signal, 1)
