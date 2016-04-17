@@ -42,6 +42,12 @@ type setRoundForRoom struct {
 	RoomID  int `json:"roomID"`
 }
 
+type setRoundDoneForRoom struct {
+	RoundID  int    `json:"roundID"`
+	RoomID   int    `json:"roomID"`
+	NickName string `json:"nickName"`
+}
+
 type selectWordForRound struct {
 	Word     string `json:"word"`
 	RoundID  int    `json:"roundID"`
@@ -114,6 +120,31 @@ func SetRoundForRoom(w http.ResponseWriter, r *http.Request) {
 	if err != nil {
 		log.Println("Could not set round and room - DB error")
 		http.Error(w, "Could not set round and room - DB error", http.StatusInternalServerError)
+		return
+	}
+
+	json.NewEncoder(w).Encode(map[string]int{"status": http.StatusOK})
+}
+
+func SetRoundDoneForRoom(w http.ResponseWriter, r *http.Request) {
+	decoder := json.NewDecoder(r.Body)
+	var j setRoundDoneForRoom
+	err := decoder.Decode(&j)
+
+	if err != nil {
+		log.Println("Could not set round and room in SetRoundDoneForRoom")
+		http.Error(w, "Could not set round and room in SetRoundDoneForRoom", http.StatusInternalServerError)
+		return
+	}
+
+	leaderIP, err := game.GetRoomLeader(j.RoomID)
+
+	query := "INSERT into round_room_end_mapping values (" + strconv.Itoa(j.RoundID) + ", " + strconv.Itoa(j.RoomID) + ", \"" + j.NickName + "\");"
+	err = game.SqlExecute(query, leaderIP)
+
+	if err != nil {
+		log.Println("Could not set round and room in SetRoundDoneForRoom - DB error")
+		http.Error(w, "Could not set round and room in SetRoundDoneForRoom - DB error", http.StatusInternalServerError)
 		return
 	}
 
@@ -266,7 +297,6 @@ func CheckGuess(w http.ResponseWriter, r *http.Request) {
 	guess := r.Form.Get("guess")
 	drawer := r.Form.Get("drawer")
 	guessor := r.Form.Get("guessor")
-	points := r.Form.Get("points")
 
 	log.Printf("Check guess %s - %s requested", roundID, guess)
 
@@ -302,12 +332,12 @@ func CheckGuess(w http.ResponseWriter, r *http.Request) {
 		boolGuessor := IfScoreExists(roomID, guessor)
 		log.Println("boolGuessor=")
 		log.Println(boolGuessor)
-		setScore(roomID, guessor, points, boolGuessor)
+		setScore(roomID, guessor, "10", boolGuessor)
 
 		boolDrawer := IfScoreExists(roomID, drawer)
 		log.Println("boolDrawer=")
 		log.Println(boolDrawer)
-		setScore(roomID, drawer, points, boolDrawer)
+		setScore(roomID, drawer, "10", boolDrawer)
 
 		res := resultStruct{Result: "true"}
 		json.NewEncoder(w).Encode(res)
@@ -446,6 +476,69 @@ func setScore(roomID string, nick string, score string, isUpdate bool) {
 	}
 
 	//json.NewEncoder(w).Encode(map[string]int{"status": http.StatusOK})
+
+}
+
+func IsRoundDone(w http.ResponseWriter, r *http.Request) {
+
+	if err := r.ParseForm(); err != nil {
+		log.Println("Unable to parse request")
+		http.Error(w, "Unable to parse request", http.StatusInternalServerError)
+		return
+	}
+
+	roomID := r.Form.Get("roomid")
+	roundID := r.Form.Get("roundid")
+	num_members := r.Form.Get("num")
+	num_members_int, err := strconv.Atoi(num_members)
+
+	if err != nil {
+		log.Println("Unable to parse num")
+		http.Error(w, "Unable to parse num", http.StatusInternalServerError)
+		return
+	}
+
+	log.Printf("IsRoundDone check for %s requested", roomID)
+
+	roomIDint, err := strconv.Atoi(roomID)
+
+	leaderIP, err := game.GetRoomLeader(roomIDint)
+
+	if err != nil {
+		log.Println("Error while getting room leader")
+		http.Error(w, "Error while getting room leader", http.StatusInternalServerError)
+		return
+	}
+
+	query := "SELECT COUNT(*) from round_room_end_mapping where room_id=" + roomID + " and round_id=" + roundID + ";"
+	result, err := game.SqlQuery(query, leaderIP)
+
+	if err != nil {
+		log.Println("Could not check for round completeness")
+		http.Error(w, "Could not check for round completeness", http.StatusInternalServerError)
+		return
+	}
+
+	jsonData := result.(map[string]interface{})
+	results := jsonData["results"].([]interface{})
+	row := results[0].(map[string]interface{})
+	valuesArr := row["values"].([]interface{})
+	valueRow := valuesArr[0].([]interface{})
+
+	//TODO: type assertion needs fixing
+	var value float64 = (valueRow[0]).(float64)
+
+	//var value int = 0
+
+	if int(value) == num_members_int {
+		res := resultStruct{Result: "true"}
+		json.NewEncoder(w).Encode(res)
+
+	} else {
+		//return false
+		res := resultStruct{Result: "false"}
+		json.NewEncoder(w).Encode(res)
+	}
 
 }
 

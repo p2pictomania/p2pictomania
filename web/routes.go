@@ -115,4 +115,16 @@ var routes = Routes{
 		"/getscore",
 		GetScore,
 	},
+	Route{
+		"SetRoundDoneForRoom",
+		"POST",
+		"/setrounddone",
+		SetRoundDoneForRoom,
+	},
+	Route{
+		"IsRoundDone",
+		"GET",
+		"/isrounddone",
+		IsRoundDone,
+	},
 }
