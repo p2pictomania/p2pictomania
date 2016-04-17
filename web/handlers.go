@@ -381,14 +381,49 @@ func IfScoreExists(roomID string, nick string) bool {
 		return false
 	}
 
-	return true
+	jsonData := result.(map[string]interface{})
+	results := jsonData["results"].([]interface{})
+	row := results[0].(map[string]interface{})
+	valuesArr := row["values"].([]interface{})
+	valueRow := valuesArr[0].([]interface{})
+
+	//TODO: type assertion needs fixing
+	var value = (valueRow[0]).(float64)
+
+	if value == 0 {
+		return false
+	} else {
+		return true
+	}
+
+	/*
+
+		    "results": [
+		        {
+		            "columns": [
+		                "exists(select 1 from player_score_mapping where room_id =1 and player_name=\"bob\")"
+		            ],
+		            "types": [
+		                ""
+		            ],
+		            "values": [
+		                [
+		                    0
+		                ]
+		            ],
+		            "time": 0.00017867500000000002
+		        }
+		    ],
+		    "time": 0.00020709800000000002
+		}
+	*/
 
 }
 
 // SetScore foo
-func SetScore(roomID string, drawer string, score string) {
+func setScore(roomID string, nick string, score string, isUpdate bool) {
 
-	log.Printf("Set Score for %s - %s requested", drawer, roomID)
+	log.Printf("Set Score for %s - %s requested", nick, roomID)
 
 	roomIDint, err := strconv.Atoi(roomID)
 
@@ -400,13 +435,24 @@ func SetScore(roomID string, drawer string, score string) {
 		return
 	}
 
-	query := "INSERT into player_score_mapping values (" + roomID + ", \"" + drawer + "\", " + score + ");"
-	err = game.SqlExecute(query, leaderIP)
+	if isUpdate == false {
+		query := "INSERT into player_score_mapping values (" + roomID + ", \"" + nick + "\", 0);"
+		err = game.SqlExecute(query, leaderIP)
 
-	if err != nil {
-		log.Println("Could not set round and room - DB error")
-		//http.Error(w, "Could not set round and room - DB error", http.StatusInternalServerError)
-		return
+		if err != nil {
+			log.Println("Could not set round and room - DB error")
+			//http.Error(w, "Could not set round and room - DB error", http.StatusInternalServerError)
+			return
+		}
+	} else {
+		query := "UPDATE player_score_mapping SET score = score + " + score + " where room_id=" + roomID + " and nick=\"" + nick + "\";"
+		err = game.SqlExecute(query, leaderIP)
+
+		if err != nil {
+			log.Println("Could not set round and room - DB error")
+			//http.Error(w, "Could not set round and room - DB error", http.StatusInternalServerError)
+			return
+		}
 	}
 
 	//json.NewEncoder(w).Encode(map[string]int{"status": http.StatusOK})
