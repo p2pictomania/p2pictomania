@@ -110,12 +110,6 @@ var routes = Routes{
 		GetWords,
 	},
 	Route{
-		"SetScore",
-		"GET",
-		"/setscore",
-		SetScore,
-	},
-	Route{
 		"GetScore",
 		"GET",
 		"/getscore",

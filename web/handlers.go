@@ -355,18 +355,38 @@ func GetScore(w http.ResponseWriter, r *http.Request) {
 
 }
 
-// SetScore foo
-func SetScore(w http.ResponseWriter, r *http.Request) {
+func IfScoreExists(roomID string, nick string) bool {
 
-	if err := r.ParseForm(); err != nil {
-		log.Println("Invalid request")
-		http.Error(w, "Invalid request", http.StatusInternalServerError)
-		return
+	roomIDint, err := strconv.Atoi(roomID)
+
+	leaderIP, err := game.GetRoomLeader(roomIDint)
+
+	if err != nil {
+		log.Println("Error while getting room leader")
+		//http.Error(w, "Error while getting room leader", http.StatusInternalServerError)
+		return false
 	}
 
-	roomID := r.Form.Get("roomid")
-	drawer := r.Form.Get("drawer")
-	score := r.Form.Get("score")
+	//SELECT EXISTS(SELECT 1 FROM myTbl WHERE u_tag="tag" LIMIT 1);
+
+	query := "select exists(select 1 from player_score_mapping where room_id = " + roomID + " and player_name=\"" + nick + "\")"
+
+	result, err := game.SqlQuery(query, leaderIP)
+	_ = result
+
+	if err != nil {
+		log.Println("Could not check score for nick in db")
+		//http.Error(w, "Could not check score for nick in db", http.StatusInternalServerError)
+		//TODO: is returning false the right thing to do here? panic?
+		return false
+	}
+
+	return true
+
+}
+
+// SetScore foo
+func SetScore(roomID string, drawer string, score string) {
 
 	log.Printf("Set Score for %s - %s requested", drawer, roomID)
 
@@ -376,7 +396,7 @@ func SetScore(w http.ResponseWriter, r *http.Request) {
 
 	if err != nil {
 		log.Println("Error while getting room leader")
-		http.Error(w, "Error while getting room leader", http.StatusInternalServerError)
+		//http.Error(w, "Error while getting room leader", http.StatusInternalServerError)
 		return
 	}
 
@@ -385,26 +405,16 @@ func SetScore(w http.ResponseWriter, r *http.Request) {
 
 	if err != nil {
 		log.Println("Could not set round and room - DB error")
-		http.Error(w, "Could not set round and room - DB error", http.StatusInternalServerError)
+		//http.Error(w, "Could not set round and room - DB error", http.StatusInternalServerError)
 		return
 	}
 
-	json.NewEncoder(w).Encode(map[string]int{"status": http.StatusOK})
+	//json.NewEncoder(w).Encode(map[string]int{"status": http.StatusOK})
 
 }
 
-/*
-func UpdateScore(w http.ResponseWriter, r *http.Request) {
+func UpdateScore(roomID, drawer, guessor string) {
 
-	if err := r.ParseForm(); err != nil {
-		log.Println("Invalid request")
-		http.Error(w, "Invalid request", http.StatusInternalServerError)
-		return
-	}
-
-	roomID := r.Form.Get("roomid")
-	drawer := r.Form.Get("drawer")
-	guessor := r.Form.Get("guessor")
 	log.Printf("Update Score for %s requested", roomID)
 
 	roomIDint, err := strconv.Atoi(roomID)
@@ -413,16 +423,28 @@ func UpdateScore(w http.ResponseWriter, r *http.Request) {
 
 	if err != nil {
 		log.Println("Error while getting room leader")
-		http.Error(w, "Error while getting room leader", http.StatusInternalServerError)
+		//log.Println(w, "Error while getting room leader", http.StatusInternalServerError)
 		return
 	}
 
-	query := "UPDATE player_score_mapping SET score = score + 10 where room_id=" + roomID + " and (nick=\"" + drawer + "\" or nick=\"" + guessor + "\");"
-	result, err := game.SqlQuery(query, leaderIP)
+	//insert into player_score_mapping (room_id, player_name, score) select roomID, "drawer"
+	query := "INSERT into player_score_mapping  (" + roomID + ", \"" + drawer + "\", 0)"
+	err = game.SqlExecute(query, leaderIP)
+
+	if err != nil {
+		log.Println("Could not set round and room - DB error")
+		//http.Error(w, "Could not set round and room - DB error", http.StatusInternalServerError)
+		return
+	}
+
+	//json.NewEncoder(w).Encode(map[string]int{"status": http.StatusOK})
+
+	queryUpdate := "UPDATE player_score_mapping SET score = score + 10 where room_id=" + roomID + " and (nick=\"" + drawer + "\" or nick=\"" + guessor + "\");"
+	result, err := game.SqlQuery(queryUpdate, leaderIP)
 	_ = result
 	if err != nil {
 		log.Println("Could not update score in db")
-		http.Error(w, "Could not update score db", http.StatusInternalServerError)
+		//http.Error(w, "Could not update score db", http.StatusInternalServerError)
 		return
 	}
 
@@ -432,9 +454,8 @@ func UpdateScore(w http.ResponseWriter, r *http.Request) {
 
 	//TODO: return status 200
 
-	json.NewEncoder(w).Encode(map[string]int{"status": http.StatusOK})
+	//json.NewEncoder(w).Encode(map[string]int{"status": http.StatusOK})
 }
-*/
 
 // IsRoundReady does shit
 func IsRoundReady(w http.ResponseWriter, r *http.Request) {
