@@ -71,7 +71,7 @@ func dbExists(path string) bool {
 // InitTables initializes tables
 func InitTables() {
 	query := "[" +
-		"\"CREATE TABLE `round_room_mapping` (`round_id` INTEGER NOT NULL, `room_id` INTEGER NOT NULL, UNIQUE (`room_id`, `round_id`) ON CONFLICT REPLACE);\"," +
+		"\"CREATE TABLE `round_room_mapping` (`round_id` INTEGER NOT NULL, `room_id` INTEGER NOT NULL, UNIQUE (`room_id`) ON CONFLICT REPLACE);\"," +
 		"\"CREATE TABLE `words_round_mapping` (`round_id` INTEGER NOT NULL, `room_id` INTEGER NOT NULL, `player_name` TEXT NOT NULL, `word` TEXT NOT NULL, UNIQUE (`round_id`, `player_name`, `word`) ON CONFLICT REPLACE);\"," +
 		"\"CREATE TABLE `player_score_mapping` (`room_id` INTEGER NOT NULL, `player_name` TEXT NOT NULL, `score` INTEGER, UNIQUE (`room_id`, `player_name`) ON CONFLICT REPLACE);\"" +
 		"]"
@@ -96,7 +96,6 @@ func InitTables() {
 	// check for execution response
 	content, err := ioutil.ReadAll(resp.Body)
 
-	log.Println("Response from initTable=" + string(content))
 	var j interface{}
 	err = json.Unmarshal(content, &j)
 	if err != nil {
@@ -110,11 +109,19 @@ func InitTables() {
 			log.Fatalf("Could not execute query %d in querySet %s : %s", i, query, val)
 		}
 	}
+	log.Println("Room DB tables initialized")
 }
 
+// GetRoomLeader foo
 func GetRoomLeader(roomID int) (string, error) {
 
-	values, _ := GetListOfPlayersForRoom(strconv.Itoa(roomID))
+	values, err := GetListOfPlayersForRoom(strconv.Itoa(roomID))
+	if err != nil {
+		log.Println("Could not get list of peers for room :" + err.Error())
+		return "", err
+	}
+	log.Println("List of IPs for Room: ")
+	log.Println(values)
 	var listofRoomNodes []string
 	for _, val := range values {
 		row := val.([]interface{})

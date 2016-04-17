@@ -39,7 +39,7 @@ func GetLeaderIP(listOfRoomNodes []string) (string, error) {
 
 // GetListOfPlayersForRoom does shit
 func GetListOfPlayersForRoom(roomID string) ([]interface{}, error) {
-	url := "http://autogra.de/peers/" + roomID
+	url := "http://autogra.de:5000/peers/" + roomID
 	resp, err := http.Get(url)
 	if err != nil {
 		return nil, err
