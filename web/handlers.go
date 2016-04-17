@@ -265,6 +265,8 @@ func CheckGuess(w http.ResponseWriter, r *http.Request) {
 	roundID := r.Form.Get("roundid")
 	guess := r.Form.Get("guess")
 	drawer := r.Form.Get("drawer")
+	guessor := r.Form.Get("guessor")
+	points := r.Form.Get("points")
 
 	log.Printf("Check guess %s - %s requested", roundID, guess)
 
@@ -294,9 +296,19 @@ func CheckGuess(w http.ResponseWriter, r *http.Request) {
 	valueRow := valuesArr[0].([]interface{})
 
 	//TODO: type assertion needs fixing
-	var value = (valueRow[0]).(string)
+	var value string = (valueRow[0]).(string)
 
 	if value == guess {
+		boolGuessor := IfScoreExists(roomID, guessor)
+		log.Println("boolGuessor=")
+		log.Println(boolGuessor)
+		setScore(roomID, guessor, points, boolGuessor)
+
+		boolDrawer := IfScoreExists(roomID, drawer)
+		log.Println("boolDrawer=")
+		log.Println(boolDrawer)
+		setScore(roomID, drawer, points, boolDrawer)
+
 		res := resultStruct{Result: "true"}
 		json.NewEncoder(w).Encode(res)
 	} else {
@@ -396,28 +408,6 @@ func IfScoreExists(roomID string, nick string) bool {
 		return true
 	}
 
-	/*
-
-		    "results": [
-		        {
-		            "columns": [
-		                "exists(select 1 from player_score_mapping where room_id =1 and player_name=\"bob\")"
-		            ],
-		            "types": [
-		                ""
-		            ],
-		            "values": [
-		                [
-		                    0
-		                ]
-		            ],
-		            "time": 0.00017867500000000002
-		        }
-		    ],
-		    "time": 0.00020709800000000002
-		}
-	*/
-
 }
 
 // SetScore foo
@@ -436,18 +426,18 @@ func setScore(roomID string, nick string, score string, isUpdate bool) {
 	}
 
 	if isUpdate == false {
-		query := "INSERT into player_score_mapping values (" + roomID + ", \"" + nick + "\", 0);"
+		query := "INSERT into player_score_mapping values (" + roomID + ", \"" + nick + "\"," + score + ");"
 		err = game.SqlExecute(query, leaderIP)
-
+		log.Println("Initial Score inserted")
 		if err != nil {
 			log.Println("Could not set round and room - DB error")
 			//http.Error(w, "Could not set round and room - DB error", http.StatusInternalServerError)
 			return
 		}
 	} else {
-		query := "UPDATE player_score_mapping SET score = score + " + score + " where room_id=" + roomID + " and nick=\"" + nick + "\";"
+		query := "UPDATE player_score_mapping SET score = score + " + score + " where room_id=" + roomID + " and player_name=\"" + nick + "\";"
 		err = game.SqlExecute(query, leaderIP)
-
+		log.Println("Score updated")
 		if err != nil {
 			log.Println("Could not set round and room - DB error")
 			//http.Error(w, "Could not set round and room - DB error", http.StatusInternalServerError)
@@ -457,50 +447,6 @@ func setScore(roomID string, nick string, score string, isUpdate bool) {
 
 	//json.NewEncoder(w).Encode(map[string]int{"status": http.StatusOK})
 
-}
-
-func UpdateScore(roomID, drawer, guessor string) {
-
-	log.Printf("Update Score for %s requested", roomID)
-
-	roomIDint, err := strconv.Atoi(roomID)
-
-	leaderIP, err := game.GetRoomLeader(roomIDint)
-
-	if err != nil {
-		log.Println("Error while getting room leader")
-		//log.Println(w, "Error while getting room leader", http.StatusInternalServerError)
-		return
-	}
-
-	//insert into player_score_mapping (room_id, player_name, score) select roomID, "drawer"
-	query := "INSERT into player_score_mapping  (" + roomID + ", \"" + drawer + "\", 0)"
-	err = game.SqlExecute(query, leaderIP)
-
-	if err != nil {
-		log.Println("Could not set round and room - DB error")
-		//http.Error(w, "Could not set round and room - DB error", http.StatusInternalServerError)
-		return
-	}
-
-	//json.NewEncoder(w).Encode(map[string]int{"status": http.StatusOK})
-
-	queryUpdate := "UPDATE player_score_mapping SET score = score + 10 where room_id=" + roomID + " and (nick=\"" + drawer + "\" or nick=\"" + guessor + "\");"
-	result, err := game.SqlQuery(queryUpdate, leaderIP)
-	_ = result
-	if err != nil {
-		log.Println("Could not update score in db")
-		//http.Error(w, "Could not update score db", http.StatusInternalServerError)
-		return
-	}
-
-	//	jsonData := result.(map[string]interface{})
-	//	results := jsonData["results"].([]interface{})
-	//	row := results[0].(map[string]interface{})
-
-	//TODO: return status 200
-
-	//json.NewEncoder(w).Encode(map[string]int{"status": http.StatusOK})
 }
 
 // IsRoundReady does shit
