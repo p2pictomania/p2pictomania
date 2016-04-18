@@ -88,6 +88,18 @@
             url: "/isroundready?roundid="+currentRound+"&roomid={{roomID}}&num={{maxPlayers}}",
             dataType: "json",
             success: function (data) {
+                $(".has-success").each(function(){
+                    $(this).removeClass("has-success");
+                    $(this).removeClass("has-error");
+                });
+                $(".guess-input").each(function(){
+                    $(this).removeAttr('disabled');
+                    $(this).val('');
+                });
+                $(".submit_guess_btn").each(function(){
+                    $(this).get(0).style.pointerEvents = 'auto';
+                });
+
                 $("#gameArea").show();
                 $("#messageArea").hide();
                 $('.countdown').removeClass('ended')
@@ -145,12 +157,12 @@
             }
 
             var form = '<form class="form-horizontal">'+
-                            '<div class="form-group has-success has-feedback">'+
+                            '<div id="block-'+data["nickname"]+'" class="form-group has-feedback">'+
                                 '<div class="col-sm-12">'+
-                                    '<div class="input-group">'+
+                                    '<div class="input-group guess_group">'+
                                         '<span class="input-group-addon">@'+data["nickname"]+'</span>' +
-                                        '<input type="text" class="form-control" id="input-'+data["nickname"]+'">' +
-                                        '<span class="input-group-addon">Submit</span>'+
+                                        '<input type="text" class="form-control guess-input" id="input-'+data["nickname"]+'">' +
+                                        '<span class="input-group-addon submit_guess_btn" id="submitbtn-'+data["nickname"]+'" onclick="submitGuess(\''+data["nickname"]+'\')">Submit</span>'+
                                     '</div>'+
                                 '</div>'+
                             '</div>'+
@@ -167,6 +179,23 @@
                         '</li>';
             $("#chatArea").append(html);
         }
+    }
+
+    function submitGuess(nickname) {
+        var inputBox = $("#input-"+nickname);
+        var guess = $(inputBox).val();
+        $.get("/checkguess?roomid={{roomID}}&roundid="+currentRound+"&guess="+guess+"&drawer="+nickname+"&guessor={{nickname}}", function(data){
+            var jsonData = JSON.parse(data);
+            if(jsonData['result'] === "true"){
+                $("#block-"+nickname).removeClass("has-error");
+                $("#block-"+nickname).addClass("has-success");
+                $("#submitbtn-"+nickname).get(0).style.pointerEvents = 'none';
+                inputBox.attr('disabled', "true");
+            } else {
+                $("#block-"+nickname).addClass("has-error");
+            }
+        });
+
     }
 
     $(function() {
@@ -267,12 +296,12 @@
                         startRound();
                     }
                     var form = '<form class="form-horizontal">'+
-                                    '<div class="form-group has-success has-feedback">'+
+                                    '<div id="block-'+data[i][1]+'" class="form-group has-feedback">'+
                                         '<div class="col-sm-12">'+
-                                            '<div class="input-group">'+
+                                            '<div class="input-group guess_group">'+
                                                 '<span class="input-group-addon">@'+data[i][1]+'</span>' +
-                                                '<input type="text" class="form-control" id="input-'+data[i][1]+'">' +
-                                                '<span class="input-group-addon">Submit</span>'+
+                                                '<input type="text" class="form-control guess-input" id="input-'+data[i][1]+'">' +
+                                                '<span class="input-group-addon submit_guess_btn" id="submitbtn-'+data[i][1]+'" onclick="submitGuess(\''+data[i][1]+'\')">Submit</span>'+
                                             '</div>'+
                                         '</div>'+
                                     '</div>'+
