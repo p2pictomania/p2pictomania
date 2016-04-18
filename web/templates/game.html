@@ -67,6 +67,22 @@
             </div>
         </div>
     </div>
+
+
+    <div class="col-md-7">
+        <h4>Scores</h4>
+        <table class="table">
+            <thead>
+                <tr>
+                    <th>Nickname</th>
+                    <th>Score</th>
+                </tr>
+            </thead>
+            <tbody id="scoreTableBody">
+
+            </tbody>
+        </table>
+    </div>
 </div>
 
 {% endblock %}
@@ -88,6 +104,18 @@
             url: "/isroundready?roundid="+currentRound+"&roomid={{roomID}}&num={{maxPlayers}}",
             dataType: "json",
             success: function (data) {
+                $(".has-success").each(function(){
+                    $(this).removeClass("has-success");
+                    $(this).removeClass("has-error");
+                });
+                $(".guess-input").each(function(){
+                    $(this).removeAttr('disabled');
+                    $(this).val('');
+                });
+                $(".submit_guess_btn").each(function(){
+                    $(this).get(0).style.pointerEvents = 'auto';
+                });
+
                 $("#gameArea").show();
                 $("#messageArea").hide();
                 $('.countdown').removeClass('ended')
@@ -145,12 +173,12 @@
             }
 
             var form = '<form class="form-horizontal">'+
-                            '<div class="form-group has-success has-feedback">'+
+                            '<div id="block-'+data["nickname"]+'" class="form-group has-feedback">'+
                                 '<div class="col-sm-12">'+
-                                    '<div class="input-group">'+
+                                    '<div class="input-group guess_group">'+
                                         '<span class="input-group-addon">@'+data["nickname"]+'</span>' +
-                                        '<input type="text" class="form-control" id="input-'+data["nickname"]+'">' +
-                                        '<span class="input-group-addon">Submit</span>'+
+                                        '<input type="text" class="form-control guess-input" id="input-'+data["nickname"]+'">' +
+                                        '<span class="input-group-addon submit_guess_btn" id="submitbtn-'+data["nickname"]+'" onclick="submitGuess(\''+data["nickname"]+'\')">Submit</span>'+
                                     '</div>'+
                                 '</div>'+
                             '</div>'+
@@ -158,6 +186,10 @@
             var image = '<img id="image-'+data["nickname"]+'" class="playerImages" src="" height="400" width="450" style="border: 1px solid black; background-color:white;"></img>';
             var html = '<div>' + image + ' ' + form + '</div>';
             $("#imageArea").slick('slickAdd', html);
+
+            var tableHtml = '<tr><th scope="row">'+data["nickname"]+'</th><td id="score-"'+data["nickname"]+'>0</td></tr>';
+            $("#scoreTableBody").append(tableHtml);
+
         } else if(data["kind"] === "chatMessage") {
             var d = new Date();
             var html = '<li class="clearfix" style="list-style: none;margin: 0;padding: 0;margin-bottom: 10px;padding-bottom: 5px;border-bottom: 1px dotted #B3A9A9;">'+
@@ -167,6 +199,23 @@
                         '</li>';
             $("#chatArea").append(html);
         }
+    }
+
+    function submitGuess(nickname) {
+        var inputBox = $("#input-"+nickname);
+        var guess = $(inputBox).val();
+        $.get("/checkguess?roomid={{roomID}}&roundid="+currentRound+"&guess="+guess+"&drawer="+nickname+"&guessor={{nickname}}", function(data){
+            var jsonData = JSON.parse(data);
+            if(jsonData['result'] === "true"){
+                $("#block-"+nickname).removeClass("has-error");
+                $("#block-"+nickname).addClass("has-success");
+                $("#submitbtn-"+nickname).get(0).style.pointerEvents = 'none';
+                inputBox.attr('disabled', "true");
+            } else {
+                $("#block-"+nickname).addClass("has-error");
+            }
+        });
+
     }
 
     $(function() {
@@ -182,6 +231,24 @@
             prevArrow: '<button type="button" class="slick-prev">Previous</button>',
             nextArrow: '<button type="button" class="slick-next">Next</button>'
         });
+
+        function updateScores() {
+            for (var property in connections) {
+                if (connections.hasOwnProperty(property)) {
+                    $.get("/getscore?roomid={{roomID}}&drawer="+property, function(data){
+                        var jsonData = JSON.parse(data);
+                        var result = jsonData["result"];
+                        $("#score-"+property).html(result);
+                    });
+                }
+            }
+            // self score
+            $.get("/getscore?roomid={{roomID}}&drawer={{nickname}}", function(data){
+                var jsonData = JSON.parse(data);
+                var result = jsonData["result"];
+                $("#score-{{nickname}}").html(result);
+            });
+        }
 
         $('.countdown').countdown({
           date: +(new Date) + 90000,
@@ -222,8 +289,7 @@
             }).fail(function(){
                 alert("Could not update room number");
             });
-
-
+            updateScores();
           }
         });
 
@@ -254,6 +320,9 @@
                     me = new WebSocket("ws://"+data[i][2]+":8000/ws");
                     me.onclose = onClose;
                     me.onmessage = onMessage;
+
+                    var tableHtml = '<tr><th scope="row">{{nickname}}</th><td id="score-{{nickname}}">0</td></tr>';
+                    $("#scoreTableBody").append(tableHtml);
                 } else {
                     var c = new WebSocket("ws://"+data[i][2]+":8000/ws");
                     c.onclose = onClose;
@@ -267,12 +336,12 @@
                         startRound();
                     }
                     var form = '<form class="form-horizontal">'+
-                                    '<div class="form-group has-success has-feedback">'+
+                                    '<div id="block-'+data[i][1]+'" class="form-group has-feedback">'+
                                         '<div class="col-sm-12">'+
-                                            '<div class="input-group">'+
+                                            '<div class="input-group guess_group">'+
                                                 '<span class="input-group-addon">@'+data[i][1]+'</span>' +
-                                                '<input type="text" class="form-control" id="input-'+data[i][1]+'">' +
-                                                '<span class="input-group-addon">Submit</span>'+
+                                                '<input type="text" class="form-control guess-input" id="input-'+data[i][1]+'">' +
+                                                '<span class="input-group-addon submit_guess_btn" id="submitbtn-'+data[i][1]+'" onclick="submitGuess(\''+data[i][1]+'\')">Submit</span>'+
                                             '</div>'+
                                         '</div>'+
                                     '</div>'+
@@ -280,6 +349,9 @@
                     var image = '<img id="image-'+data[i][1]+'" class="playerImages" src="" height="400" width="450" style="border: 1px solid black; background-color:white;"></img>';
                     var html = '<div>' + image + ' ' + form + '</div>';
                     $("#imageArea").slick('slickAdd', html);
+
+                    var tableHtml = '<tr><th scope="row">'+data[i][1]+'</th><td id="score-"'+data[i][1]+'>0</td></tr>';
+                    $("#scoreTableBody").append(tableHtml);
                 }
             }
         }, "json");

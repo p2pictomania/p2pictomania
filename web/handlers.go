@@ -364,6 +364,11 @@ func GetScore(w http.ResponseWriter, r *http.Request) {
 
 	roomIDint, err := strconv.Atoi(roomID)
 
+	if IfScoreExists(roomID, drawer) {
+		json.NewEncoder(w).Encode(resultStruct{Result: "0"})
+		return
+	}
+
 	leaderIP, err := game.GetRoomLeader(roomIDint)
 
 	if err != nil {
