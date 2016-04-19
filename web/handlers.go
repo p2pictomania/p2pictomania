@@ -681,7 +681,7 @@ func Game(w http.ResponseWriter, r *http.Request) {
 
 	err = tplGame.ExecuteWriter(pongo2.Context{"nickname": Nickname,
 		"dns": Config.BootstrapDNSEndpoint, "roomID": roomID,
-		"maxPlayers": MaxRoomPlayers, "playerIP": ip}, w)
+		"maxPlayers": MaxRoomPlayers, "playerIP": ip, "roomTimeLimit": RoomTimeLimit}, w)
 	httpError(err, w)
 }
 

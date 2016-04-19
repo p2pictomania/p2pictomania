@@ -119,12 +119,12 @@
                 $("#gameArea").show();
                 $("#messageArea").hide();
                 $('.countdown').removeClass('ended')
-                $('.countdown').data('countdown').update(+(new Date) + 90000).start();
+                $('.countdown').data('countdown').update(+(new Date) + {{roomTimeLimit}}).start();
             },
             error: function () {
                 setTimeout(function () {
                     startRoundWhenReady();
-                }, 2000)
+                }, 2000);
             }
         });
     }
@@ -133,6 +133,9 @@
         $.get("/getround?roomid={{roomID}}", function(data){
             var jsonData = JSON.parse(data);
             currentRound = jsonData["roundNum"];
+            if (currentRound != 1){
+                currentRound += 1;
+            }
             $.get("/getwords?num=1", function(data){
                 var jsonData = JSON.parse(data);
                 var word = jsonData["result"];
@@ -157,12 +160,16 @@
 
     function onMessage(event) {
         var data = JSON.parse(event.data);
+        var alreadyExists = false;
         if(data["kind"] === "drawing"){
             var image = $("#image-"+data["nickname"]);
             image.attr("src", data["data"]);
         } else if (data["kind"] === "newConn") {
             if(data["nickname"] == "{{nickname}}"){
                 return;
+            }
+            if(connections.hasOwnProperty(data["nickname"])){
+                alreadyExists = true;
             }
             var c = new WebSocket("ws://"+data["ip"]+":8000/ws");
             c.onclose = onClose;
@@ -171,24 +178,25 @@
             if(Object.keys(connections).length == {{maxPlayers}} - 1) {
                 startRound();
             }
-
-            var form = '<form class="form-horizontal">'+
-                            '<div id="block-'+data["nickname"]+'" class="form-group has-feedback">'+
-                                '<div class="col-sm-12">'+
-                                    '<div class="input-group guess_group">'+
-                                        '<span class="input-group-addon">@'+data["nickname"]+'</span>' +
-                                        '<input type="text" class="form-control guess-input" id="input-'+data["nickname"]+'">' +
-                                        '<span class="input-group-addon submit_guess_btn" id="submitbtn-'+data["nickname"]+'" onclick="submitGuess(\''+data["nickname"]+'\')">Submit</span>'+
+            if(!alreadyExists) {
+                var form = '<form class="form-horizontal">'+
+                                '<div id="block-'+data["nickname"]+'" class="form-group has-feedback">'+
+                                    '<div class="col-sm-12">'+
+                                        '<div class="input-group guess_group">'+
+                                            '<span class="input-group-addon">@'+data["nickname"]+'</span>' +
+                                            '<input type="text" class="form-control guess-input" id="input-'+data["nickname"]+'">' +
+                                            '<span class="input-group-addon submit_guess_btn" id="submitbtn-'+data["nickname"]+'" onclick="submitGuess(\''+data["nickname"]+'\')">Submit</span>'+
+                                        '</div>'+
                                     '</div>'+
                                 '</div>'+
-                            '</div>'+
-                        '</form>';
-            var image = '<img id="image-'+data["nickname"]+'" class="playerImages" src="" height="400" width="450" style="border: 1px solid black; background-color:white;"></img>';
-            var html = '<div>' + image + ' ' + form + '</div>';
-            $("#imageArea").slick('slickAdd', html);
+                            '</form>';
+                var image = '<img id="image-'+data["nickname"]+'" class="playerImages" src="" height="400" width="450" style="border: 1px solid black; background-color:white;"></img>';
+                var html = '<div>' + image + ' ' + form + '</div>';
+                $("#imageArea").slick('slickAdd', html);
 
-            var tableHtml = '<tr><th scope="row">'+data["nickname"]+'</th><td id="score-'+data["nickname"]+'">0</td></tr>';
-            $("#scoreTableBody").append(tableHtml);
+                var tableHtml = '<tr><th scope="row">'+data["nickname"]+'</th><td id="score-'+data["nickname"]+'">0</td></tr>';
+                $("#scoreTableBody").append(tableHtml);
+            }
 
         } else if(data["kind"] === "chatMessage") {
             var d = new Date();
@@ -251,7 +259,7 @@
         }
 
         $('.countdown').countdown({
-          date: +(new Date) + 90000,
+          date: +(new Date) + {{roomTimeLimit}},
           render: function(data) {
             $(this.el).text(this.leadingZeros(data.min, 2) + ":" + this.leadingZeros(data.sec, 2));
             if(data.min == 0 && data.sec == 10) {
