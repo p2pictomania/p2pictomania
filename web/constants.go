@@ -4,7 +4,7 @@ const (
 	//ConfigFileName holds the name of the config file
 	ConfigFileName string = "web/config.json"
 	//MaxRoomPlayers hols the max number of players in a room
-	MaxRoomPlayers int = 2
+	MaxRoomPlayers int = 3
 
 	// GameDBFolder holds the path to the database folder
 	GameDBFolder string = "./gamedb"
