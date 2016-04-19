@@ -17,11 +17,11 @@ import (
 	"strings"
 	"time"
 
+	sql "github.com/abhishekshivanna/rqlite/db"
+	httpd "github.com/abhishekshivanna/rqlite/http"
+	"github.com/abhishekshivanna/rqlite/store"
 	"github.com/flosch/pongo2"
 	"github.com/gorilla/mux"
-	sql "github.com/otoolep/rqlite/db"
-	httpd "github.com/otoolep/rqlite/http"
-	"github.com/otoolep/rqlite/store"
 	"github.com/p2pictomania/p2pictomania/game"
 )
 
@@ -877,7 +877,9 @@ func setupGameDB(joinAddr string, roomID string) {
 	GameStore = store.New(dbConf, dataPath, raftAddr)
 	log.Println("set GameStore: ")
 	log.Println(GameStore)
-	if err := GameStore.Open(joinAddr == ""); err != nil {
+	publicIP, _ := getPublicIP()
+	publicRaftAddr := fmt.Sprintf("%s%s", publicIP, raftAddr)
+	if err := GameStore.Open(joinAddr == "", publicRaftAddr); err != nil {
 		log.Fatalf("failed to open store: %s", err.Error())
 	}
 

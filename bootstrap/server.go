@@ -17,10 +17,10 @@ import (
 	"sync"
 	"time"
 
+	sql "github.com/abhishekshivanna/rqlite/db"
+	httpd "github.com/abhishekshivanna/rqlite/http"
+	"github.com/abhishekshivanna/rqlite/store"
 	"github.com/bogdanovich/dns_resolver"
-	sql "github.com/otoolep/rqlite/db"
-	httpd "github.com/otoolep/rqlite/http"
-	"github.com/otoolep/rqlite/store"
 	"github.com/p2pictomania/p2pictomania/connections"
 )
 
@@ -239,7 +239,9 @@ func setupDB(joinAddr string) {
 	dbConf.DSN = ""
 	dbConf.Memory = false
 	store := store.New(dbConf, dataPath, raftAddr)
-	if err := store.Open(joinAddr == ""); err != nil {
+	publicIP, _ := getPublicIP()
+	publicRaftAddr := fmt.Sprintf("%s%s", publicIP, raftAddr)
+	if err := store.Open(joinAddr == "", publicRaftAddr); err != nil {
 		log.Fatalf("failed to open store: %s", err.Error())
 	}
 
