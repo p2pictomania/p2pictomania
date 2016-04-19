@@ -187,7 +187,7 @@
             var html = '<div>' + image + ' ' + form + '</div>';
             $("#imageArea").slick('slickAdd', html);
 
-            var tableHtml = '<tr><th scope="row">'+data["nickname"]+'</th><td id="score-"'+data["nickname"]+'>0</td></tr>';
+            var tableHtml = '<tr><th scope="row">'+data["nickname"]+'</th><td id="score-'+data["nickname"]+'">0</td></tr>';
             $("#scoreTableBody").append(tableHtml);
 
         } else if(data["kind"] === "chatMessage") {
@@ -350,7 +350,7 @@
                     var html = '<div>' + image + ' ' + form + '</div>';
                     $("#imageArea").slick('slickAdd', html);
 
-                    var tableHtml = '<tr><th scope="row">'+data[i][1]+'</th><td id="score-"'+data[i][1]+'>0</td></tr>';
+                    var tableHtml = '<tr><th scope="row">'+data[i][1]+'</th><td id="score-'+data[i][1]+'">0</td></tr>';
                     $("#scoreTableBody").append(tableHtml);
                 }
             }
