@@ -72,7 +72,7 @@ func dbExists(path string) bool {
 func InitTables() {
 	query := "[" +
 		"\"CREATE TABLE `round_room_mapping` (`round_id` INTEGER NOT NULL, `room_id` INTEGER NOT NULL, UNIQUE (`room_id`) ON CONFLICT REPLACE);\"," +
-		"\"CREATE TABLE `words_round_mapping` (`round_id` INTEGER NOT NULL, `room_id` INTEGER NOT NULL, `player_name` TEXT NOT NULL, `word` TEXT NOT NULL, UNIQUE (`round_id`, `player_name`, `word`) ON CONFLICT REPLACE);\"," +
+		"\"CREATE TABLE `words_round_mapping` (`round_id` INTEGER NOT NULL, `room_id` INTEGER NOT NULL, `player_name` TEXT NOT NULL, `word` TEXT NOT NULL, UNIQUE (`round_id`, `player_name`, `room_id`) ON CONFLICT REPLACE);\"," +
 		"\"CREATE TABLE `player_score_mapping` (`room_id` INTEGER NOT NULL, `player_name` TEXT NOT NULL, `score` INTEGER, UNIQUE (`room_id`, `player_name`) ON CONFLICT REPLACE);\"," +
 		"\"CREATE TABLE `round_room_end_mapping` (`round_id` INTEGER NOT NULL, `room_id` INTEGER NOT NULL, `player_name` TEXT NOT NULL, UNIQUE (`round_id`, `room_id`, `player_name`) ON CONFLICT REPLACE);\"" +
 		"]"

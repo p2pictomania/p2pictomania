@@ -397,8 +397,8 @@ func GetScore(w http.ResponseWriter, r *http.Request) {
 	var value = (valueRow[0]).(float64)
 	var intvalue = int(value)
 	var stringvalue = strconv.Itoa(intvalue)
-	res := resultStruct{Result: stringvalue}
-	json.NewEncoder(w).Encode(res)
+	// res := resultStruct{Result: stringvalue}
+	json.NewEncoder(w).Encode(map[string]string{"result": stringvalue, "nickname": drawer})
 
 }
 
@@ -681,7 +681,7 @@ func Game(w http.ResponseWriter, r *http.Request) {
 
 	err = tplGame.ExecuteWriter(pongo2.Context{"nickname": Nickname,
 		"dns": Config.BootstrapDNSEndpoint, "roomID": roomID,
-		"maxPlayers": MaxRoomPlayers, "playerIP": ip}, w)
+		"maxPlayers": MaxRoomPlayers, "playerIP": ip, "roomTimeLimit": RoomTimeLimit}, w)
 	httpError(err, w)
 }
 
