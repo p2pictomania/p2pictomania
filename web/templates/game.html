@@ -97,6 +97,7 @@
     var me;
     var connections = {};
     var currentRound = 0;
+    var inc = false;
 
     function startRoundWhenReady(){
         $.ajax({
@@ -134,6 +135,10 @@
         $.get("/getround?roomid={{roomID}}", function(data){
             var jsonData = JSON.parse(data);
             currentRound = jsonData["roundNum"];
+            if (!inc){
+                currentRound += 1;
+                inc = true;
+            }
             $.get("/getwords?num=1", function(data){
                 var jsonData = JSON.parse(data);
                 var word = jsonData["result"];
