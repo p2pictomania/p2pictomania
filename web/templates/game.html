@@ -278,7 +278,7 @@
             $('#src').sketch();
             $("#src").on("mouseup", function(e) {
                 var data = $('#src').get(0).toDataURL();
-                var jsonData = {"kind": "drawing", "nickname": "Abhi", "data": data};
+                var jsonData = {"kind": "drawing", "nickname": "{{nickname}}", "data": data};
                 me.send(JSON.stringify(jsonData));
             });
             //end setting up canvas
