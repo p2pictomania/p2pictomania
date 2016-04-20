@@ -244,7 +244,8 @@
                     $.get("/getscore?roomid={{roomID}}&drawer="+property, function(data){
                         var jsonData = JSON.parse(data);
                         var result = jsonData["result"];
-                        $("#score-"+property).html(result);
+                        var player = jsonData["nickname"];
+                        $("#score-"+player).html(result);
                     });
                 }
             }

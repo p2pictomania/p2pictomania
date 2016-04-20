@@ -397,8 +397,8 @@ func GetScore(w http.ResponseWriter, r *http.Request) {
 	var value = (valueRow[0]).(float64)
 	var intvalue = int(value)
 	var stringvalue = strconv.Itoa(intvalue)
-	res := resultStruct{Result: stringvalue}
-	json.NewEncoder(w).Encode(res)
+	// res := resultStruct{Result: stringvalue}
+	json.NewEncoder(w).Encode(map[string]string{"result": stringvalue, "nickname": drawer})
 
 }
 
