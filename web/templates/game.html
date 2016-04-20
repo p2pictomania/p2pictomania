@@ -97,7 +97,6 @@
     var me;
     var connections = {};
     var currentRound = 0;
-    var initial = true;
 
     function startRoundWhenReady(){
         $.ajax({
@@ -124,7 +123,8 @@
             },
             error: function () {
                 setTimeout(function () {
-                    startRoundWhenReady();
+                    // startRoundWhenReady();
+                    startRound();
                 }, 2000);
             }
         });
@@ -134,11 +134,6 @@
         $.get("/getround?roomid={{roomID}}", function(data){
             var jsonData = JSON.parse(data);
             currentRound = jsonData["roundNum"];
-            if (currentRound != 1 && initial){
-                currentRound += 1;
-            } else {
-                initial = false;
-            }
             $.get("/getwords?num=1", function(data){
                 var jsonData = JSON.parse(data);
                 var word = jsonData["result"];
