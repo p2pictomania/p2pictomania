@@ -173,9 +173,6 @@
             c.onclose = onClose;
             c.onmessage = onMessage;
             connections[data["nickname"]] = {"ip": data["ip"], "conn": c};
-            if(Object.keys(connections).length == {{maxPlayers}} - 1) {
-                startRound();
-            }
             if(!alreadyExists) {
                 var form = '<form class="form-horizontal">'+
                                 '<div id="block-'+data["nickname"]+'" class="form-group has-feedback">'+
@@ -194,6 +191,9 @@
 
                 var tableHtml = '<tr><th scope="row">'+data["nickname"]+'</th><td id="score-'+data["nickname"]+'">0</td></tr>';
                 $("#scoreTableBody").append(tableHtml);
+                if(Object.keys(connections).length == {{maxPlayers}} - 1) {
+                    startRound();
+                }
             }
 
         } else if(data["kind"] === "chatMessage") {
