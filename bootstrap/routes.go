@@ -86,4 +86,10 @@ var routes = Routes{
 		"/rooms",
 		GetRoomsList,
 	},
+	Route{
+		"IsRoundDone",
+		"GET",
+		"/room/close/{roomID}",
+		CloseRoom,
+	},
 }

@@ -216,6 +216,24 @@ func OpenRoom(w http.ResponseWriter, r *http.Request) {
 	json.NewEncoder(w).Encode(map[string]int{"status": http.StatusOK})
 }
 
+// CloseRoom closes a given room with id roomID
+func CloseRoom(w http.ResponseWriter, r *http.Request) {
+	w.Header().Set("Access-Control-Allow-Origin", "*")
+	urlVars := mux.Vars(r)
+	roomID := urlVars["roomID"]
+
+	query := "UPDATE rooms SET open = 0 where id= " + roomID + ";"
+	err := sqlExecute(query)
+	if err != nil {
+		log.Println("Failed to update room to closed: " + err.Error())
+		http.Error(w, "Failed to update room to closed", http.StatusInternalServerError)
+		return
+	}
+	log.Println("Successfully Opened room " + roomID)
+	json.NewEncoder(w).Encode(map[string]int{"status": http.StatusOK})
+
+}
+
 func sqlQuery(query string) (interface{}, error) {
 	listOfBootstrapNodes, _ := net.LookupHost(Config.DNS)
 	leaderIP, err := GetLeaderIP(listOfBootstrapNodes)

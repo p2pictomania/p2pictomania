@@ -156,6 +156,12 @@
         });;
     }
 
+    function markRoomAsClosed() {
+        $.get("{{dns}}/room/close/{{roomID}}", function(data){
+            console.log("room successfully closed");
+        });
+    }
+
     function onClose(event) {
         console.log("connection closed");
     }
@@ -345,6 +351,7 @@
                     connections[data[i][1]] = {"ip": data[i][2], "conn": c};
                     if(Object.keys(connections).length == {{maxPlayers}} - 1) {
                         startRound();
+                        markRoomAsClosed();
                     }
                     var form = '<form class="form-horizontal">'+
                                     '<div id="block-'+data[i][1]+'" class="form-group has-feedback">'+
