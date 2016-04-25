@@ -296,7 +296,7 @@ func initTables() {
 		"\"CREATE TABLE IF NOT EXISTS `bootstrap` (`ip` TEXT, `active` INTEGER DEFAULT 1, PRIMARY KEY(ip));\"," +
 		"\"CREATE TABLE `users` (`name` TEXT NOT NULL, `ip` TEXT NOT NULL, `active` INTEGER DEFAULT 1, PRIMARY KEY(name));\"," +
 		"\"CREATE TABLE `rooms` (`id` INTEGER NOT NULL PRIMARY KEY AUTOINCREMENT, `name` TEXT NOT NULL, `open` INTEGER DEFAULT 1, UNIQUE (`name`));\"," +
-		"\"CREATE TABLE `player_room_mapping` (`room_id` INTEGER NOT NULL, `player_name` TEXT NOT NULL, `player_ip` TEXT NOT NULL, UNIQUE (`room_id`, `player_name`) ON CONFLICT REPLACE);\"" +
+		"\"CREATE TABLE `player_room_mapping` (`room_id` INTEGER NOT NULL, `player_name` TEXT NOT NULL, `player_ip` TEXT NOT NULL, `room_name` TEXT NOT NULL, UNIQUE (`room_id`, `player_name`, `room_name`) ON CONFLICT REPLACE);\"" +
 		"]"
 
 	url := "http://localhost:" + strconv.Itoa(DBApiPort) + "/" + "db/execute?pretty&timings"

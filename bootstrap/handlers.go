@@ -19,6 +19,7 @@ type addPlayerToRoomJSON struct {
 	RoomID         int    `json:"roomID"`
 	PlayerNickName string `json:"nickName"`
 	PlayerIP       string `json:"playerIP"`
+	RoomName       string `json:"roomName"`
 }
 
 type deletePlayerFromRoomJSON struct {
@@ -72,7 +73,7 @@ func AddPlayerToRoom(w http.ResponseWriter, r *http.Request) {
 		return
 	}
 
-	query := "INSERT into player_room_mapping values (" + strconv.Itoa(j.RoomID) + ", \"" + j.PlayerNickName + "\", \"" + j.PlayerIP + "\");"
+	query := "INSERT into player_room_mapping values (" + strconv.Itoa(j.RoomID) + ", \"" + j.PlayerNickName + "\", \"" + j.PlayerIP + "\", \"" + j.RoomName + "\");"
 	err = sqlExecute(query)
 	if err != nil {
 		log.Println("Couldn't add player to room - DB error: " + err.Error())
@@ -191,6 +192,26 @@ func GetRoomsList(w http.ResponseWriter, r *http.Request) {
 	if err != nil {
 		log.Println("Couldn't fetch room list")
 		http.Error(w, "Couldn't fetch room list", http.StatusInternalServerError)
+		return
+	}
+	jsonData := result.(map[string]interface{})
+	results := jsonData["results"].([]interface{})
+	row := results[0].(map[string]interface{})
+	json.NewEncoder(w).Encode(row)
+}
+
+// GetRoomsListForPlayer is he handler to return the current list of rooms
+func GetRoomsListForPlayer(w http.ResponseWriter, r *http.Request) {
+	w.Header().Set("Access-Control-Allow-Origin", "*")
+	log.Println("Query for room list for specific player")
+	urlVars := mux.Vars(r)
+	nickname := urlVars["nickname"]
+
+	query := "SELECT room_id, room_name from player_room_mapping where player_name = \"" + nickname + "\";"
+	result, err := sqlQuery(query)
+	if err != nil {
+		log.Println("Couldn't fetch room list for specific player")
+		http.Error(w, "Couldn't fetch room list for specific player", http.StatusInternalServerError)
 		return
 	}
 	jsonData := result.(map[string]interface{})

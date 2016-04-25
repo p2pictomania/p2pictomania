@@ -32,6 +32,11 @@
              <div id="roomList" class="list-group">
 
             </div>
+            <hr/>
+            <h4>Resume Game</h4>
+             <div id="resumeRoomList" class="list-group">
+
+            </div>
         </div>
     </div>
 </div>
@@ -78,7 +83,8 @@
             }
             $.post("{{dns}}/room/new", {"roomname": roomname}, function(data){
                 var jsonData = JSON.parse(data)
-                var postData = {"roomID" : jsonData["roomID"], "nickName": "{{nickname}}", "playerIP": "{{playerIP}}" };
+                var roomname = $("#roomname").val();
+                var postData = {"roomID" : jsonData["roomID"], "nickName": "{{nickname}}", "playerIP": "{{playerIP}}", "roomName": roomname};
                 $.post("{{dns}}/player/join", JSON.stringify(postData) , function (data){
                     if(data["status"] == 200){
                         window.location.href = "/game/"+ jsonData["roomID"];
@@ -94,8 +100,8 @@
         });
     });
 
-    function joinRoom(roomID){
-        var postData = {"roomID" : roomID, "nickName": "{{nickname}}", "playerIP": "{{playerIP}}" };
+    function joinRoom(roomID, roomName){
+        var postData = {"roomID" : roomID, "nickName": "{{nickname}}", "playerIP": "{{playerIP}}", "roomName": roomName};
         $.post("{{dns}}/player/join", JSON.stringify(postData) , function (data){
             if(data["status"] == 200){
                 window.location.href = "/game/"+ roomID;
@@ -108,16 +114,32 @@
     }
 
     function populateRooms() {
+        $("#roomList").html("");
+        $("#resumeRoomList").html("");
         $.get("{{dns}}/rooms", function(data){
             var json = JSON.parse(data);
             var rows = json["values"]
             if (rows == undefined){
+                var html = 'No games available! You can create one and wait for players to join';
+                $("#roomList").append(html);
                 return;
             }
-            $("#roomList").html("");
             for(var i=0; i<rows.length; i++) {
-                var html = '<button type="button" class="list-group-item roombutton" onclick="joinRoom('+rows[i][0]+')">'+rows[i][1]+'</button>';
+                var html = '<button type="button" class="list-group-item roombutton" onclick="joinRoom('+rows[i][0]+', \''+rows[i][1]+'\')">'+rows[i][1]+'</button>';
                 $("#roomList").append(html);
+            }
+        });
+        $.get("{{dns}}/rooms/{{nickname}}", function(data){
+            var json = JSON.parse(data);
+            var rows = json["values"]
+            if (rows == undefined){
+                var html = 'No suspended games!';
+                $("#resumeRoomList").append(html);
+                return;
+            }
+            for(var i=0; i<rows.length; i++) {
+                var html = '<button type="button" class="list-group-item roombutton" onclick="joinRoom('+rows[i][0]+', \''+rows[i][1]+'\')">'+rows[i][1]+'</button>';
+                $("#resumeRoomList").append(html);
             }
         });
     }
