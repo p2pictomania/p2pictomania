@@ -668,6 +668,7 @@ func Game(w http.ResponseWriter, r *http.Request) {
 	}
 	if len(listOfPlayers) == 1 {
 		go setupGameDB("", roomID)
+		time.Sleep(3000 * time.Millisecond)
 		markRoomAsOpen(roomID)
 	} else {
 		listOfIPs := getListOfIPs(listOfPlayers)
@@ -676,13 +677,26 @@ func Game(w http.ResponseWriter, r *http.Request) {
 			httpError(err, w)
 			return
 		}
-		go setupGameDB(leaderIP, roomID)
+		publicIP, _ := GetPublicIP()
+		if !contains(listOfIPs, publicIP) {
+			go setupGameDB(leaderIP, roomID)
+			time.Sleep(3000 * time.Millisecond)
+		}
 	}
 
 	err = tplGame.ExecuteWriter(pongo2.Context{"nickname": Nickname,
 		"dns": Config.BootstrapDNSEndpoint, "roomID": roomID,
 		"maxPlayers": MaxRoomPlayers, "playerIP": ip, "roomTimeLimit": RoomTimeLimit}, w)
 	httpError(err, w)
+}
+
+func contains(s []string, e string) bool {
+	for _, a := range s {
+		if a == e {
+			return true
+		}
+	}
+	return false
 }
 
 // HandleSocketConn is used as the endpoint fot websocket connections to be made
