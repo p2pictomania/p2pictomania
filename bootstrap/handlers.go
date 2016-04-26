@@ -9,7 +9,6 @@ import (
 	"github.com/gorilla/mux"
 	"io/ioutil"
 	"log"
-	"net"
 	"net/http"
 	"net/url"
 	"strconv"
@@ -187,7 +186,12 @@ func CreateNewRoom(w http.ResponseWriter, r *http.Request) {
 		return
 	}
 	query = "SELECT id from rooms where name = \"" + roomname + "\";"
-	data, _ := sqlQuery(query)
+	data, err := sqlQuery(query)
+	if err != nil {
+		log.Println("Failed selecting back a room: " + err.Error())
+		http.Error(w, "Failed selecting back a room ", http.StatusUnauthorized)
+		return
+	}
 	jsonData := data.(map[string]interface{})
 	results := jsonData["results"].([]interface{})
 	row := results[0].(map[string]interface{})
@@ -271,7 +275,19 @@ func CloseRoom(w http.ResponseWriter, r *http.Request) {
 }
 
 func sqlQuery(query string) (interface{}, error) {
-	listOfBootstrapNodes, _ := net.LookupHost(Config.DNS)
+	// listOfBootstrapNodes, _ := net.LookupHost(Config.DNS)
+	resolver := dns_resolver.New([]string{"ns1.dnsimple.com", "ns2.dnsimple.com"})
+	resolver.RetryTimes = 5
+	bootiplist, err := resolver.LookupHost(Config.DNS)
+	if err != nil {
+		log.Println("DNS lookup error for autogra.de in CheckForBootstrapNode")
+		log.Fatal(err.Error())
+	}
+	listOfBootstrapNodes := []string{}
+	for _, val := range bootiplist {
+		listOfBootstrapNodes = append(listOfBootstrapNodes, val.String())
+	}
+
 	leaderIP, err := GetLeaderIP(listOfBootstrapNodes)
 	if err != nil {
 		return nil, errors.New("No Leader found to execute query")
@@ -285,6 +301,7 @@ func sqlQuery(query string) (interface{}, error) {
 	parameters.Add("q", query)
 	endpoint.RawQuery = parameters.Encode()
 
+	log.Println("sqlQuery: " + endpoint.String())
 	resp, err := http.Get(endpoint.String())
 	if err != nil {
 		log.Printf("%s", err)
