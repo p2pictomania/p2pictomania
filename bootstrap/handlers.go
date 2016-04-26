@@ -389,10 +389,12 @@ func RemoveBootstrapPeer(w http.ResponseWriter, r *http.Request) {
 		leaderIP, err := GetLeaderIP(listOfBootstrapNodes)
 		if err != nil {
 			http.Error(w, "Failed to delete bootstrap node", http.StatusInternalServerError)
+			return
 		}
 		publicIP, err := GetPublicIP()
 		if err != nil {
 			http.Error(w, "Failed to delete bootstrap node", http.StatusInternalServerError)
+			return
 		}
 		if leaderIP != publicIP {
 			u := "http://" + leaderIP + ":" + strconv.Itoa(BootstrapPort) + "/bootstrap/remove/" + ip
@@ -400,6 +402,7 @@ func RemoveBootstrapPeer(w http.ResponseWriter, r *http.Request) {
 			if err != nil {
 				log.Printf("%s", err)
 				http.Error(w, "Failed to delete bootstrap node", http.StatusInternalServerError)
+				return
 			}
 		} else {
 			u := "http://localhost:+" + strconv.Itoa(DBApiPort) + "/removepeer?ip=" + ip
@@ -407,6 +410,7 @@ func RemoveBootstrapPeer(w http.ResponseWriter, r *http.Request) {
 			if err != nil {
 				log.Printf("%s", err)
 				http.Error(w, "Failed to delete bootstrap node", http.StatusInternalServerError)
+				return
 			}
 		}
 	}

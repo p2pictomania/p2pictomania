@@ -261,6 +261,7 @@ func setupDB(joinAddr string) {
 	signal.Notify(terminate, os.Interrupt)
 	<-terminate
 	cleanupBootstrapState()
+	time.Sleep(time.Second * 5)
 	if err := store.Close(); err != nil {
 		log.Printf("failed to close store: %s", err.Error())
 	}
