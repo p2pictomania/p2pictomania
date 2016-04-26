@@ -158,7 +158,7 @@ func DeletePlayer(w http.ResponseWriter, r *http.Request) {
 	query := "DELETE from users where name=\"" + nickname + "\";"
 	err := sqlExecute(query)
 	if err != nil {
-		log.Println("Failed Logout/Delete player from DB")
+		log.Println("Failed Logout/Delete player from DB: " + err.Error())
 		http.Error(w, "Failed Logout/Delete player from DB", http.StatusUnauthorized)
 		return
 	}

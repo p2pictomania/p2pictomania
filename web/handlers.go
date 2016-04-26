@@ -933,33 +933,37 @@ func setupGameDB(joinAddr string, roomID string) {
 			time.Sleep(time.Second * 3)
 			log.Println("sleep over")
 			GameStore = nil
+			if dbExists(GameDBFolder) {
+				os.RemoveAll(GameDBFolder)
+			}
 			done <- true
 			return
 		case <-terminate:
-			if err := GameStore.Close(); err != nil {
-				log.Printf("failed to close store: %s", err.Error())
-			}
-			s.Close()
 			err := cleanupAllState()
 			if err != nil {
 				log.Fatalf("could not clean up state")
 			}
+			if err := GameStore.Close(); err != nil {
+				log.Printf("failed to close store: %s", err.Error())
+			}
+			s.Close()
 			if dbExists(GameDBFolder) {
 				os.RemoveAll(GameDBFolder)
 			}
 			log.Println("game db server stopped")
-			os.Exit(0)
 		}
 	}
 }
 
 func cleanupAllState() error {
 	url := Config.BootstrapDNSEndpoint + "/player/quit/" + Nickname
+	log.Println("quit player url: " + url)
 	_, err := http.Get(url)
 	if err != nil {
 		return err
 	}
 	url = Config.BootstrapDNSEndpoint + "/player/delete/" + Nickname
+	log.Println("delete player url: " + url)
 	_, err = http.Get(url)
 	if err != nil {
 		return err

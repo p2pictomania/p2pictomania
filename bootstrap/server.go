@@ -259,6 +259,7 @@ func setupDB(joinAddr string) {
 	terminate := make(chan os.Signal, 1)
 	signal.Notify(terminate, os.Interrupt)
 	<-terminate
+	time.Sleep(3000 * time.Millisecond)
 	if err := store.Close(); err != nil {
 		log.Printf("failed to close store: %s", err.Error())
 	}
