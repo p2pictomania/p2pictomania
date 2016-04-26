@@ -9,7 +9,6 @@ import (
 	"github.com/gorilla/mux"
 	"io/ioutil"
 	"log"
-	"net"
 	"net/http"
 	"net/url"
 	"strconv"
@@ -19,6 +18,7 @@ type addPlayerToRoomJSON struct {
 	RoomID         int    `json:"roomID"`
 	PlayerNickName string `json:"nickName"`
 	PlayerIP       string `json:"playerIP"`
+	RoomName       string `json:"roomName"`
 }
 
 type deletePlayerFromRoomJSON struct {
@@ -72,7 +72,7 @@ func AddPlayerToRoom(w http.ResponseWriter, r *http.Request) {
 		return
 	}
 
-	query := "INSERT into player_room_mapping values (" + strconv.Itoa(j.RoomID) + ", \"" + j.PlayerNickName + "\", \"" + j.PlayerIP + "\");"
+	query := "INSERT into player_room_mapping values (" + strconv.Itoa(j.RoomID) + ", \"" + j.PlayerNickName + "\", \"" + j.PlayerIP + "\", \"" + j.RoomName + "\");"
 	err = sqlExecute(query)
 	if err != nil {
 		log.Println("Couldn't add player to room - DB error: " + err.Error())
@@ -105,6 +105,21 @@ func DeletePlayerFromRoom(w http.ResponseWriter, r *http.Request) {
 		return
 	}
 
+	json.NewEncoder(w).Encode(map[string]int{"status": http.StatusOK})
+}
+
+// DeletePlayerFromNetwork deletes a player from all rooms
+func DeletePlayerFromNetwork(w http.ResponseWriter, r *http.Request) {
+	w.Header().Set("Access-Control-Allow-Origin", "*")
+	urlVars := mux.Vars(r)
+	nickname := urlVars["nickname"]
+	query := "DELETE from player_room_mapping where player_name = \"" + nickname + "\""
+	_, err := sqlQuery(query)
+	if err != nil {
+		log.Println("Couldn't delete in room")
+		http.Error(w, "Couldn't delete player in room", http.StatusInternalServerError)
+		return
+	}
 	json.NewEncoder(w).Encode(map[string]int{"status": http.StatusOK})
 }
 
@@ -142,7 +157,7 @@ func DeletePlayer(w http.ResponseWriter, r *http.Request) {
 	query := "DELETE from users where name=\"" + nickname + "\";"
 	err := sqlExecute(query)
 	if err != nil {
-		log.Println("Failed Logout/Delete player from DB")
+		log.Println("Failed Logout/Delete player from DB: " + err.Error())
 		http.Error(w, "Failed Logout/Delete player from DB", http.StatusUnauthorized)
 		return
 	}
@@ -171,7 +186,12 @@ func CreateNewRoom(w http.ResponseWriter, r *http.Request) {
 		return
 	}
 	query = "SELECT id from rooms where name = \"" + roomname + "\";"
-	data, _ := sqlQuery(query)
+	data, err := sqlQuery(query)
+	if err != nil {
+		log.Println("Failed selecting back a room: " + err.Error())
+		http.Error(w, "Failed selecting back a room ", http.StatusUnauthorized)
+		return
+	}
 	jsonData := data.(map[string]interface{})
 	results := jsonData["results"].([]interface{})
 	row := results[0].(map[string]interface{})
@@ -199,6 +219,26 @@ func GetRoomsList(w http.ResponseWriter, r *http.Request) {
 	json.NewEncoder(w).Encode(row)
 }
 
+// GetRoomsListForPlayer is he handler to return the current list of rooms
+func GetRoomsListForPlayer(w http.ResponseWriter, r *http.Request) {
+	w.Header().Set("Access-Control-Allow-Origin", "*")
+	log.Println("Query for room list for specific player")
+	urlVars := mux.Vars(r)
+	nickname := urlVars["nickname"]
+
+	query := "SELECT room_id, room_name from player_room_mapping where player_name = \"" + nickname + "\";"
+	result, err := sqlQuery(query)
+	if err != nil {
+		log.Println("Couldn't fetch room list for specific player")
+		http.Error(w, "Couldn't fetch room list for specific player", http.StatusInternalServerError)
+		return
+	}
+	jsonData := result.(map[string]interface{})
+	results := jsonData["results"].([]interface{})
+	row := results[0].(map[string]interface{})
+	json.NewEncoder(w).Encode(row)
+}
+
 // OpenRoom is the handler to change a room's open state to 1
 func OpenRoom(w http.ResponseWriter, r *http.Request) {
 	w.Header().Set("Access-Control-Allow-Origin", "*")
@@ -216,8 +256,38 @@ func OpenRoom(w http.ResponseWriter, r *http.Request) {
 	json.NewEncoder(w).Encode(map[string]int{"status": http.StatusOK})
 }
 
+// CloseRoom closes a given room with id roomID
+func CloseRoom(w http.ResponseWriter, r *http.Request) {
+	w.Header().Set("Access-Control-Allow-Origin", "*")
+	urlVars := mux.Vars(r)
+	roomID := urlVars["roomID"]
+
+	query := "UPDATE rooms SET open = 0 where id= " + roomID + ";"
+	err := sqlExecute(query)
+	if err != nil {
+		log.Println("Failed to update room to closed: " + err.Error())
+		http.Error(w, "Failed to update room to closed", http.StatusInternalServerError)
+		return
+	}
+	log.Println("Successfully Opened room " + roomID)
+	json.NewEncoder(w).Encode(map[string]int{"status": http.StatusOK})
+
+}
+
 func sqlQuery(query string) (interface{}, error) {
-	listOfBootstrapNodes, _ := net.LookupHost(Config.DNS)
+	// listOfBootstrapNodes, _ := net.LookupHost(Config.DNS)
+	resolver := dns_resolver.New([]string{"ns1.dnsimple.com", "ns2.dnsimple.com"})
+	resolver.RetryTimes = 5
+	bootiplist, err := resolver.LookupHost(Config.DNS)
+	if err != nil {
+		log.Println("DNS lookup error for autogra.de in CheckForBootstrapNode")
+		log.Fatal(err.Error())
+	}
+	listOfBootstrapNodes := []string{}
+	for _, val := range bootiplist {
+		listOfBootstrapNodes = append(listOfBootstrapNodes, val.String())
+	}
+
 	leaderIP, err := GetLeaderIP(listOfBootstrapNodes)
 	if err != nil {
 		return nil, errors.New("No Leader found to execute query")
@@ -231,6 +301,7 @@ func sqlQuery(query string) (interface{}, error) {
 	parameters.Add("q", query)
 	endpoint.RawQuery = parameters.Encode()
 
+	log.Println("sqlQuery: " + endpoint.String())
 	resp, err := http.Get(endpoint.String())
 	if err != nil {
 		log.Printf("%s", err)
@@ -323,4 +394,13 @@ func sqlExecute(query string) error {
 		}
 	}
 	return nil
+}
+
+func contains(s []string, e string) bool {
+	for _, a := range s {
+		if a == e {
+			return true
+		}
+	}
+	return false
 }

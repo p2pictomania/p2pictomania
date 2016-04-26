@@ -439,9 +439,8 @@ func IfScoreExists(roomID string, nick string) bool {
 
 	if value == 0 {
 		return false
-	} else {
-		return true
 	}
+	return true
 
 }
 
@@ -668,6 +667,7 @@ func Game(w http.ResponseWriter, r *http.Request) {
 	}
 	if len(listOfPlayers) == 1 {
 		go setupGameDB("", roomID)
+		time.Sleep(3000 * time.Millisecond)
 		markRoomAsOpen(roomID)
 	} else {
 		listOfIPs := getListOfIPs(listOfPlayers)
@@ -676,13 +676,26 @@ func Game(w http.ResponseWriter, r *http.Request) {
 			httpError(err, w)
 			return
 		}
-		go setupGameDB(leaderIP, roomID)
+		publicIP, _ := GetPublicIP()
+		if !contains(listOfIPs, publicIP) {
+			go setupGameDB(leaderIP, roomID)
+			time.Sleep(3000 * time.Millisecond)
+		}
 	}
 
 	err = tplGame.ExecuteWriter(pongo2.Context{"nickname": Nickname,
 		"dns": Config.BootstrapDNSEndpoint, "roomID": roomID,
 		"maxPlayers": MaxRoomPlayers, "playerIP": ip, "roomTimeLimit": RoomTimeLimit}, w)
 	httpError(err, w)
+}
+
+func contains(s []string, e string) bool {
+	for _, a := range s {
+		if a == e {
+			return true
+		}
+	}
+	return false
 }
 
 // HandleSocketConn is used as the endpoint fot websocket connections to be made
@@ -920,15 +933,40 @@ func setupGameDB(joinAddr string, roomID string) {
 			time.Sleep(time.Second * 3)
 			log.Println("sleep over")
 			GameStore = nil
+			if dbExists(GameDBFolder) {
+				os.RemoveAll(GameDBFolder)
+			}
 			done <- true
 			return
 		case <-terminate:
+			err := cleanupAllState()
+			if err != nil {
+				log.Fatalf("could not clean up state")
+			}
 			if err := GameStore.Close(); err != nil {
 				log.Printf("failed to close store: %s", err.Error())
 			}
 			s.Close()
-			log.Println("rqlite server stopped")
-			os.Exit(0)
+			if dbExists(GameDBFolder) {
+				os.RemoveAll(GameDBFolder)
+			}
+			log.Println("game db server stopped")
 		}
 	}
+}
+
+func cleanupAllState() error {
+	url := Config.BootstrapDNSEndpoint + "/player/quit/" + Nickname
+	log.Println("quit player url: " + url)
+	_, err := http.Get(url)
+	if err != nil {
+		return err
+	}
+	url = Config.BootstrapDNSEndpoint + "/player/delete/" + Nickname
+	log.Println("delete player url: " + url)
+	_, err = http.Get(url)
+	if err != nil {
+		return err
+	}
+	return nil
 }

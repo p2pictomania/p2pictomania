@@ -7,21 +7,18 @@ import (
 	"fmt"
 	"io/ioutil"
 	"log"
-	//"net"
 	"net/http"
 	"os"
 	"os/signal"
 	"path/filepath"
 	"strconv"
 	"strings"
-	"sync"
 	"time"
 
 	sql "github.com/abhishekshivanna/rqlite/db"
 	httpd "github.com/abhishekshivanna/rqlite/http"
 	"github.com/abhishekshivanna/rqlite/store"
 	"github.com/bogdanovich/dns_resolver"
-	"github.com/p2pictomania/p2pictomania/connections"
 )
 
 // DNSRecord holds the data of a resolved DNS name
@@ -43,9 +40,6 @@ type DNSRecord []struct {
 
 // Config object stores the values in the config.json file
 var Config ConfigObject
-
-// Wg is a WaitGroup
-var Wg sync.WaitGroup
 
 //ConfigObject holds the parsed config.json file
 type ConfigObject struct {
@@ -145,7 +139,6 @@ func DeleteSelfFromDNS() {
 	resp, err := client.Do(req)
 	if err != nil {
 		log.Fatalf("Cannot bind IP to DNS name: %s", err)
-		Wg.Done()
 		return
 	}
 
@@ -153,7 +146,6 @@ func DeleteSelfFromDNS() {
 	defer resp.Body.Close()
 	if err != nil {
 		fmt.Println("error reading response body to A record GET request")
-		Wg.Done()
 		return
 	}
 
@@ -165,10 +157,12 @@ func DeleteSelfFromDNS() {
 	log.Printf("%+v", resultjson)
 	log.Println(len(resultjson))
 
+	publicIP, _ := getPublicIP()
+
 	for _, val := range resultjson {
 
 		//if NodeIP is found, get the "id" to delete
-		if val.Record.Content == connections.NodeIP {
+		if val.Record.Content == publicIP {
 			fmt.Println(val.Record.ID)
 
 			//delete the id with the following call
@@ -190,7 +184,6 @@ func DeleteSelfFromDNS() {
 			delResp, err := client.Do(delReq)
 			if err != nil {
 				log.Fatalf("Cannot bind IP to DNS name: %s", err)
-				Wg.Done()
 				return
 			}
 			defer delResp.Body.Close()
@@ -198,18 +191,15 @@ func DeleteSelfFromDNS() {
 
 			if err != nil {
 				log.Println("error reading response body in DeleteSelfFromDNS")
-				Wg.Done()
 				return
 			}
 
 			fmt.Println("Delete Response Body=" + string(delRespBody))
 
-			Wg.Done()
 			//return after deleting 1 matching IP from DNS record
 			return
 		}
 	}
-	Wg.Done()
 }
 
 func dbExists(path string) bool {
@@ -269,10 +259,16 @@ func setupDB(joinAddr string) {
 	terminate := make(chan os.Signal, 1)
 	signal.Notify(terminate, os.Interrupt)
 	<-terminate
+	time.Sleep(3000 * time.Millisecond)
 	if err := store.Close(); err != nil {
 		log.Printf("failed to close store: %s", err.Error())
 	}
-	log.Println("rqlite server stopped")
+	s.Close()
+	DeleteSelfFromDNS()
+	if dbExists(DBFolder) {
+		os.RemoveAll(DBFolder)
+	}
+	log.Println("bs db server stopped")
 	os.Exit(0)
 }
 
@@ -296,7 +292,7 @@ func initTables() {
 		"\"CREATE TABLE IF NOT EXISTS `bootstrap` (`ip` TEXT, `active` INTEGER DEFAULT 1, PRIMARY KEY(ip));\"," +
 		"\"CREATE TABLE `users` (`name` TEXT NOT NULL, `ip` TEXT NOT NULL, `active` INTEGER DEFAULT 1, PRIMARY KEY(name));\"," +
 		"\"CREATE TABLE `rooms` (`id` INTEGER NOT NULL PRIMARY KEY AUTOINCREMENT, `name` TEXT NOT NULL, `open` INTEGER DEFAULT 1, UNIQUE (`name`));\"," +
-		"\"CREATE TABLE `player_room_mapping` (`room_id` INTEGER NOT NULL, `player_name` TEXT NOT NULL, `player_ip` TEXT NOT NULL, UNIQUE (`room_id`, `player_name`) ON CONFLICT REPLACE);\"" +
+		"\"CREATE TABLE `player_room_mapping` (`room_id` INTEGER NOT NULL, `player_name` TEXT NOT NULL, `player_ip` TEXT NOT NULL, `room_name` TEXT NOT NULL, UNIQUE (`room_id`, `player_name`, `room_name`) ON CONFLICT REPLACE);\"" +
 		"]"
 
 	url := "http://localhost:" + strconv.Itoa(DBApiPort) + "/" + "db/execute?pretty&timings"
@@ -384,7 +380,7 @@ func checkForBootstrapNodes() bool {
 		}
 		go setupDB("")
 		return true
-	} else if len(listOfBootstrapNodes) < 1 {
+	} else if len(listOfBootstrapNodes) < MaxNumBootstrapNode {
 		err := addSelfToDNS()
 		if err != nil {
 			log.Println(err)

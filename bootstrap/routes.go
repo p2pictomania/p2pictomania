@@ -86,4 +86,22 @@ var routes = Routes{
 		"/rooms",
 		GetRoomsList,
 	},
+	Route{
+		"RoomListForPlayer",
+		"GET",
+		"/rooms/{nickname}",
+		GetRoomsListForPlayer,
+	},
+	Route{
+		"IsRoundDone",
+		"GET",
+		"/room/close/{roomID}",
+		CloseRoom,
+	},
+	Route{
+		"PlayerQuit",
+		"GET",
+		"/player/quit/{nickname}",
+		DeletePlayerFromNetwork,
+	},
 }
