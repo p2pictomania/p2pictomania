@@ -98,4 +98,16 @@ var routes = Routes{
 		"/room/close/{roomID}",
 		CloseRoom,
 	},
+	Route{
+		"PlayerQuit",
+		"GET",
+		"/player/quit/{nickname}",
+		DeletePlayerFromNetwork,
+	},
+	Route{
+		"RemoveBSPeer",
+		"GET",
+		"/bootstrap/remove/{ip}",
+		RemoveBootstrapPeer,
+	},
 }

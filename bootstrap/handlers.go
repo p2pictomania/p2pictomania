@@ -109,6 +109,21 @@ func DeletePlayerFromRoom(w http.ResponseWriter, r *http.Request) {
 	json.NewEncoder(w).Encode(map[string]int{"status": http.StatusOK})
 }
 
+// DeletePlayerFromNetwork deletes a player from all rooms
+func DeletePlayerFromNetwork(w http.ResponseWriter, r *http.Request) {
+	w.Header().Set("Access-Control-Allow-Origin", "*")
+	urlVars := mux.Vars(r)
+	nickname := urlVars["nickname"]
+	query := "DELETE from player_room_mapping where player_name = \"" + nickname + "\""
+	_, err := sqlQuery(query)
+	if err != nil {
+		log.Println("Couldn't delete in room")
+		http.Error(w, "Couldn't delete player in room", http.StatusInternalServerError)
+		return
+	}
+	json.NewEncoder(w).Encode(map[string]int{"status": http.StatusOK})
+}
+
 // AddNewPlayer adds a new player into the database
 func AddNewPlayer(w http.ResponseWriter, r *http.Request) {
 	w.Header().Set("Access-Control-Allow-Origin", "*")
@@ -362,4 +377,46 @@ func sqlExecute(query string) error {
 		}
 	}
 	return nil
+}
+
+// RemoveBootstrapPeer removes node from raft group
+func RemoveBootstrapPeer(w http.ResponseWriter, r *http.Request) {
+	w.Header().Set("Access-Control-Allow-Origin", "*")
+	urlVars := mux.Vars(r)
+	ip := urlVars["ip"]
+	listOfBootstrapNodes, _ := net.LookupHost(Config.DNS)
+	if contains(listOfBootstrapNodes, ip) {
+		leaderIP, err := GetLeaderIP(listOfBootstrapNodes)
+		if err != nil {
+			http.Error(w, "Failed to delete bootstrap node", http.StatusInternalServerError)
+		}
+		publicIP, err := GetPublicIP()
+		if err != nil {
+			http.Error(w, "Failed to delete bootstrap node", http.StatusInternalServerError)
+		}
+		if leaderIP != publicIP {
+			u := "http://" + leaderIP + ":" + strconv.Itoa(BootstrapPort) + "/bootstrap/remove/" + ip
+			_, err := http.Get(u)
+			if err != nil {
+				log.Printf("%s", err)
+				http.Error(w, "Failed to delete bootstrap node", http.StatusInternalServerError)
+			}
+		} else {
+			u := "http://localhost:+" + strconv.Itoa(DBApiPort) + "/removepeer?ip=" + ip
+			_, err := http.Get(u)
+			if err != nil {
+				log.Printf("%s", err)
+				http.Error(w, "Failed to delete bootstrap node", http.StatusInternalServerError)
+			}
+		}
+	}
+}
+
+func contains(s []string, e string) bool {
+	for _, a := range s {
+		if a == e {
+			return true
+		}
+	}
+	return false
 }

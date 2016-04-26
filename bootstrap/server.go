@@ -14,14 +14,12 @@ import (
 	"path/filepath"
 	"strconv"
 	"strings"
-	"sync"
 	"time"
 
 	sql "github.com/abhishekshivanna/rqlite/db"
 	httpd "github.com/abhishekshivanna/rqlite/http"
 	"github.com/abhishekshivanna/rqlite/store"
 	"github.com/bogdanovich/dns_resolver"
-	"github.com/p2pictomania/p2pictomania/connections"
 )
 
 // DNSRecord holds the data of a resolved DNS name
@@ -43,9 +41,6 @@ type DNSRecord []struct {
 
 // Config object stores the values in the config.json file
 var Config ConfigObject
-
-// Wg is a WaitGroup
-var Wg sync.WaitGroup
 
 //ConfigObject holds the parsed config.json file
 type ConfigObject struct {
@@ -145,7 +140,6 @@ func DeleteSelfFromDNS() {
 	resp, err := client.Do(req)
 	if err != nil {
 		log.Fatalf("Cannot bind IP to DNS name: %s", err)
-		Wg.Done()
 		return
 	}
 
@@ -153,7 +147,6 @@ func DeleteSelfFromDNS() {
 	defer resp.Body.Close()
 	if err != nil {
 		fmt.Println("error reading response body to A record GET request")
-		Wg.Done()
 		return
 	}
 
@@ -165,10 +158,12 @@ func DeleteSelfFromDNS() {
 	log.Printf("%+v", resultjson)
 	log.Println(len(resultjson))
 
+	publicIP, _ := getPublicIP()
+
 	for _, val := range resultjson {
 
 		//if NodeIP is found, get the "id" to delete
-		if val.Record.Content == connections.NodeIP {
+		if val.Record.Content == publicIP {
 			fmt.Println(val.Record.ID)
 
 			//delete the id with the following call
@@ -190,7 +185,6 @@ func DeleteSelfFromDNS() {
 			delResp, err := client.Do(delReq)
 			if err != nil {
 				log.Fatalf("Cannot bind IP to DNS name: %s", err)
-				Wg.Done()
 				return
 			}
 			defer delResp.Body.Close()
@@ -198,18 +192,15 @@ func DeleteSelfFromDNS() {
 
 			if err != nil {
 				log.Println("error reading response body in DeleteSelfFromDNS")
-				Wg.Done()
 				return
 			}
 
 			fmt.Println("Delete Response Body=" + string(delRespBody))
 
-			Wg.Done()
 			//return after deleting 1 matching IP from DNS record
 			return
 		}
 	}
-	Wg.Done()
 }
 
 func dbExists(path string) bool {
@@ -269,11 +260,23 @@ func setupDB(joinAddr string) {
 	terminate := make(chan os.Signal, 1)
 	signal.Notify(terminate, os.Interrupt)
 	<-terminate
+	cleanupBootstrapState()
 	if err := store.Close(); err != nil {
 		log.Printf("failed to close store: %s", err.Error())
 	}
+	s.Close()
 	log.Println("rqlite server stopped")
 	os.Exit(0)
+}
+
+func cleanupBootstrapState() {
+	ip, _ := GetPublicIP()
+	u := "http://" + Config.DNS + ":" + strconv.Itoa(BootstrapPort) + "/bootstrap/remove/" + ip
+	_, err := http.Get(u)
+	if err != nil {
+		log.Printf("Failed to delete bootstrap node: %s", err)
+	}
+	DeleteSelfFromDNS()
 }
 
 func waitForAPIStartAndLeader() {

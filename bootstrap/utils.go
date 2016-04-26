@@ -11,7 +11,9 @@ import (
 
 // GetLeaderIP returns the IP of the leader of the current bootstrap nodes
 func GetLeaderIP(listOfBootstrapNodes []string) (string, error) {
+	log.Println(listOfBootstrapNodes)
 	for _, ip := range listOfBootstrapNodes {
+		log.Println("Trying to check status of " + ip)
 		url := fmt.Sprintf("http://%s:%d/status", ip, DBApiPort)
 		res, err := http.Get(url)
 		if err != nil {

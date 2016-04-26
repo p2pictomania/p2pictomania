@@ -941,8 +941,26 @@ func setupGameDB(joinAddr string, roomID string) {
 				log.Printf("failed to close store: %s", err.Error())
 			}
 			s.Close()
+			err := cleanupAllState()
+			if err != nil {
+				log.Fatalf("could not clean up state")
+			}
 			log.Println("rqlite server stopped")
 			os.Exit(0)
 		}
 	}
+}
+
+func cleanupAllState() error {
+	url := Config.BootstrapDNSEndpoint + "/player/quit/" + Nickname
+	_, err := http.Get(url)
+	if err != nil {
+		return err
+	}
+	url = Config.BootstrapDNSEndpoint + "/player/delete/" + Nickname
+	_, err = http.Get(url)
+	if err != nil {
+		return err
+	}
+	return nil
 }
