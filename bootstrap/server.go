@@ -264,7 +264,10 @@ func setupDB(joinAddr string) {
 	}
 	s.Close()
 	DeleteSelfFromDNS()
-	log.Println("rqlite server stopped")
+	if dbExists(DBFolder) {
+		os.RemoveAll(DBFolder)
+	}
+	log.Println("bs db server stopped")
 	os.Exit(0)
 }
 

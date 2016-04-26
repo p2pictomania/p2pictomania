@@ -178,6 +178,8 @@
             }
             if(connections.hasOwnProperty(data["nickname"])){
                 alreadyExists = true;
+                connections[data["nickname"]]["conn"].disconnect();
+                delete connections["nickname"];
             }
             var c = new WebSocket("ws://"+data["ip"]+":8000/ws");
             c.onclose = onClose;
@@ -325,6 +327,12 @@
             var chat = $("#chat-input").val('');
         });
 
+        $("#chat-input").keyup(function(event){
+            if(event.keyCode == 13){
+                $("#btn-chat").click();
+            }
+        });
+
         $.get("{{dns}}/peers/{{roomID}}", function(data){
             console.log(data);
             if (!window["WebSocket"]) {
@@ -352,6 +360,7 @@
                     if(Object.keys(connections).length == {{maxPlayers}} - 1) {
                         startRound();
                         markRoomAsClosed();
+                        updateScores();
                     }
                     var form = '<form class="form-horizontal">'+
                                     '<div id="block-'+data[i][1]+'" class="form-group has-feedback">'+

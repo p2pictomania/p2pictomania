@@ -439,9 +439,8 @@ func IfScoreExists(roomID string, nick string) bool {
 
 	if value == 0 {
 		return false
-	} else {
-		return true
 	}
+	return true
 
 }
 
@@ -945,7 +944,10 @@ func setupGameDB(joinAddr string, roomID string) {
 			if err != nil {
 				log.Fatalf("could not clean up state")
 			}
-			log.Println("rqlite server stopped")
+			if dbExists(GameDBFolder) {
+				os.RemoveAll(GameDBFolder)
+			}
+			log.Println("game db server stopped")
 			os.Exit(0)
 		}
 	}
