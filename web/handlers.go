@@ -103,6 +103,7 @@ func AuthUser(w http.ResponseWriter, r *http.Request) {
 // SetRoundForRoom foo
 func SetRoundForRoom(w http.ResponseWriter, r *http.Request) {
 	decoder := json.NewDecoder(r.Body)
+	defer r.Body.Close()
 	var j setRoundForRoom
 	err := decoder.Decode(&j)
 	if err != nil {
@@ -128,6 +129,7 @@ func SetRoundForRoom(w http.ResponseWriter, r *http.Request) {
 
 func SetRoundDoneForRoom(w http.ResponseWriter, r *http.Request) {
 	decoder := json.NewDecoder(r.Body)
+	defer r.Body.Close()
 	var j setRoundDoneForRoom
 	err := decoder.Decode(&j)
 
@@ -261,6 +263,7 @@ func GetRoundForRoom(w http.ResponseWriter, r *http.Request) {
 //SelectWordForRound does shit
 func SelectWordForRound(w http.ResponseWriter, r *http.Request) {
 	decoder := json.NewDecoder(r.Body)
+	defer r.Body.Close()
 	var j selectWordForRound
 	err := decoder.Decode(&j)
 	if err != nil {
@@ -959,12 +962,6 @@ func cleanupAllState() error {
 	url := Config.BootstrapDNSEndpoint + "/player/quit/" + Nickname
 	log.Println("quit player url: " + url)
 	_, err := http.Get(url)
-	if err != nil {
-		return err
-	}
-	url = Config.BootstrapDNSEndpoint + "/player/delete/" + Nickname
-	log.Println("delete player url: " + url)
-	_, err = http.Get(url)
 	if err != nil {
 		return err
 	}

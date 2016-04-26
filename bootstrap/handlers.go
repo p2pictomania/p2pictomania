@@ -64,6 +64,7 @@ func GetPeersForRoom(w http.ResponseWriter, r *http.Request) {
 func AddPlayerToRoom(w http.ResponseWriter, r *http.Request) {
 	w.Header().Set("Access-Control-Allow-Origin", "*")
 	decoder := json.NewDecoder(r.Body)
+	defer r.Body.Close()
 	var j addPlayerToRoomJSON
 	err := decoder.Decode(&j)
 	if err != nil {
@@ -86,11 +87,12 @@ func AddPlayerToRoom(w http.ResponseWriter, r *http.Request) {
 func DeletePlayerFromRoom(w http.ResponseWriter, r *http.Request) {
 	w.Header().Set("Access-Control-Allow-Origin", "*")
 	decoder := json.NewDecoder(r.Body)
+	defer r.Body.Close()
 	var j deletePlayerFromRoomJSON
 	err := decoder.Decode(&j)
 
 	if err != nil {
-		log.Println("Could not delete player from room")
+		log.Println("Could not delete player from room: " + err.Error())
 		http.Error(w, "Could not delete player from room", http.StatusInternalServerError)
 		return
 	}

@@ -45,6 +45,7 @@
                     </div>
                 </div>
             </form>
+            <button type="button" id="leave_room" class="btn btn-danger">Leave Room</button>
         </div>
         <div id="imageArea" class="col-md-6 pre-scrollable" style="max-height: 500px;">
         </div>
@@ -178,7 +179,7 @@
             }
             if(connections.hasOwnProperty(data["nickname"])){
                 alreadyExists = true;
-                connections[data["nickname"]]["conn"].disconnect();
+                connections[data["nickname"]]["conn"].close();
                 delete connections["nickname"];
             }
             var c = new WebSocket("ws://"+data["ip"]+":8000/ws");
@@ -216,6 +217,9 @@
                             '</div>'+
                         '</li>';
             $("#chatArea").append(html);
+        } else if (data["kind"] === "leaveRoom") {
+            connections[data["from"]]["conn"].close();
+            delete connections[data["from"]];
         }
     }
 
@@ -311,6 +315,24 @@
             var data = $('#src').get(0).toDataURL();
             var jsonData = {"kind": "drawing", "nickname": "{{nickname}}", "data": data};
             me.send(JSON.stringify(jsonData));
+        });
+
+        $("#leave_room").on("click", function(){
+            $.post("{{dns}}/player/leave", JSON.stringify({"roomID": {{roomID}}, "nickName": "{{nickname}}"}), function(data){
+                console.log("room leave successful");
+                //send a message to peers
+                var data = {"kind": "leaveRoom", "from": "{{nickname}}"};
+                me.send(JSON.stringify(data));
+                //mark round as open again
+                $.get("{{dns}}/room/open/{{roomID}}", function(data){
+                    console.log("room successfully opened");
+                    window.location.href = "/rooms";
+                }).fail(function(){
+                    alert("could not re open room");
+                });
+            }).fail(function(){
+                alert("couldn't leave room successfully");
+            });
         });
 
         $("#btn-chat").on('click', function(){
