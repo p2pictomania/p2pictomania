@@ -23,7 +23,7 @@
                     </h4>
                 </div>
                 <div class="col-md-2">
-                    <button type="button" class="btn btn-default" data-toggle="modal" data-target="#myModal" style="margin-top: 10px;">
+                    <button type="button" id="modalBtn" class="btn btn-default" data-toggle="modal" data-target="#myModal" style="margin-top: 10px;">
                       <span class="glyphicon glyphicon-plus" aria-hidden="true"></span>
                     </button>
                 </div>
@@ -116,30 +116,35 @@
     function populateRooms() {
         $("#roomList").html("");
         $("#resumeRoomList").html("");
-        $.get("{{dns}}/rooms", function(data){
-            var json = JSON.parse(data);
-            var rows = json["values"]
-            if (rows == undefined){
-                var html = 'No games available! You can create one and wait for players to join';
-                $("#roomList").append(html);
-                return;
-            }
-            for(var i=0; i<rows.length; i++) {
-                var html = '<button type="button" class="list-group-item roombutton" onclick="joinRoom('+rows[i][0]+', \''+rows[i][1]+'\')">'+rows[i][1]+'</button>';
-                $("#roomList").append(html);
-            }
-        });
         $.get("{{dns}}/rooms/{{nickname}}", function(data){
             var json = JSON.parse(data);
             var rows = json["values"]
             if (rows == undefined){
+                // no rooms to rejoin
                 var html = 'No suspended games!';
+                $("#modalBtn").removeAttr('disabled');
                 $("#resumeRoomList").append(html);
+                $.get("{{dns}}/rooms", function(data){
+                    var json = JSON.parse(data);
+                    var rows = json["values"]
+                    if (rows == undefined){
+                        var html = 'No games available! You can create one and wait for players to join';
+                        $("#roomList").append(html);
+                        return;
+                    }
+                    for(var i=0; i<rows.length; i++) {
+                        var html = '<button type="button" class="list-group-item roombutton" onclick="joinRoom('+rows[i][0]+', \''+rows[i][1]+'\')">'+rows[i][1]+'</button>';
+                        $("#roomList").append(html);
+                    }
+                });
                 return;
             }
             for(var i=0; i<rows.length; i++) {
                 var html = '<button type="button" class="list-group-item roombutton" onclick="joinRoom('+rows[i][0]+', \''+rows[i][1]+'\')">'+rows[i][1]+'</button>';
                 $("#resumeRoomList").append(html);
+                $("#modalBtn").attr('disabled','true');
+                html = 'Cannot start another game! Please resume existing game or leave existing game';
+                $("#roomList").append(html);
             }
         });
     }
