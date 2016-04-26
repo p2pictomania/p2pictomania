@@ -104,10 +104,4 @@ var routes = Routes{
 		"/player/quit/{nickname}",
 		DeletePlayerFromNetwork,
 	},
-	Route{
-		"RemoveBSPeer",
-		"GET",
-		"/bootstrap/remove/{ip}",
-		RemoveBootstrapPeer,
-	},
 }

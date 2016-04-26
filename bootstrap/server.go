@@ -7,7 +7,6 @@ import (
 	"fmt"
 	"io/ioutil"
 	"log"
-	//"net"
 	"net/http"
 	"os"
 	"os/signal"
@@ -260,24 +259,13 @@ func setupDB(joinAddr string) {
 	terminate := make(chan os.Signal, 1)
 	signal.Notify(terminate, os.Interrupt)
 	<-terminate
-	cleanupBootstrapState()
-	time.Sleep(time.Second * 5)
 	if err := store.Close(); err != nil {
 		log.Printf("failed to close store: %s", err.Error())
 	}
 	s.Close()
+	DeleteSelfFromDNS()
 	log.Println("rqlite server stopped")
 	os.Exit(0)
-}
-
-func cleanupBootstrapState() {
-	ip, _ := GetPublicIP()
-	u := "http://" + Config.DNS + ":" + strconv.Itoa(BootstrapPort) + "/bootstrap/remove/" + ip
-	_, err := http.Get(u)
-	if err != nil {
-		log.Printf("Failed to delete bootstrap node: %s", err)
-	}
-	DeleteSelfFromDNS()
 }
 
 func waitForAPIStartAndLeader() {

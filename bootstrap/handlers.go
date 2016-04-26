@@ -379,43 +379,6 @@ func sqlExecute(query string) error {
 	return nil
 }
 
-// RemoveBootstrapPeer removes node from raft group
-func RemoveBootstrapPeer(w http.ResponseWriter, r *http.Request) {
-	w.Header().Set("Access-Control-Allow-Origin", "*")
-	urlVars := mux.Vars(r)
-	ip := urlVars["ip"]
-	listOfBootstrapNodes, _ := net.LookupHost(Config.DNS)
-	if contains(listOfBootstrapNodes, ip) {
-		leaderIP, err := GetLeaderIP(listOfBootstrapNodes)
-		if err != nil {
-			http.Error(w, "Failed to delete bootstrap node", http.StatusInternalServerError)
-			return
-		}
-		publicIP, err := GetPublicIP()
-		if err != nil {
-			http.Error(w, "Failed to delete bootstrap node", http.StatusInternalServerError)
-			return
-		}
-		if leaderIP != publicIP {
-			u := "http://" + leaderIP + ":" + strconv.Itoa(BootstrapPort) + "/bootstrap/remove/" + ip
-			_, err := http.Get(u)
-			if err != nil {
-				log.Printf("%s", err)
-				http.Error(w, "Failed to delete bootstrap node", http.StatusInternalServerError)
-				return
-			}
-		} else {
-			u := "http://localhost:+" + strconv.Itoa(DBApiPort) + "/removepeer?ip=" + ip
-			_, err := http.Get(u)
-			if err != nil {
-				log.Printf("%s", err)
-				http.Error(w, "Failed to delete bootstrap node", http.StatusInternalServerError)
-				return
-			}
-		}
-	}
-}
-
 func contains(s []string, e string) bool {
 	for _, a := range s {
 		if a == e {
