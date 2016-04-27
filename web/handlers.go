@@ -693,6 +693,21 @@ func Logout(w http.ResponseWriter, r *http.Request) {
 		http.Error(w, "nickname not logged out", http.StatusInternalServerError)
 		return
 	}
+
+	//clean up room raft if exists
+	if GameStore != nil {
+		log.Println("Trying to clean up DB")
+		quit <- true
+		cleanup := <-done
+		if cleanup {
+			log.Println("Successful clean up DB")
+		}
+	}
+	if dbExists(GameDBFolder) {
+		os.RemoveAll(GameDBFolder)
+	}
+	// end cleanup
+
 	Nickname = ""
 	Login(w, r)
 }
@@ -723,6 +738,8 @@ func Game(w http.ResponseWriter, r *http.Request) {
 
 	// Start concensus if room has only one player
 	listOfPlayers, err = getListOfPlayersForRoom(roomID)
+	log.Println("Current list of players in room:")
+	log.Println(listOfPlayers)
 	if err != nil {
 		httpError(err, w)
 		return
@@ -733,22 +750,37 @@ func Game(w http.ResponseWriter, r *http.Request) {
 		markRoomAsOpen(roomID)
 	} else {
 		listOfIPs := getListOfIPs(listOfPlayers)
+		log.Println("Current list of IPs in room:")
+		log.Println(listOfIPs)
 		leaderIP, err = getLeaderIP(listOfIPs)
 		if err != nil {
 			httpError(err, w)
 			return
 		}
-		publicIP, _ := GetPublicIP()
-		if !contains(listOfIPs, publicIP) {
-			go setupGameDB(leaderIP, roomID)
-			time.Sleep(3000 * time.Millisecond)
-		}
+		go setupGameDB(leaderIP, roomID)
+		time.Sleep(3000 * time.Millisecond)
 	}
 
 	err = tplGame.ExecuteWriter(pongo2.Context{"nickname": Nickname,
 		"dns": Config.BootstrapDNSEndpoint, "roomID": roomID,
 		"maxPlayers": MaxRoomPlayers, "playerIP": ip, "roomTimeLimit": RoomTimeLimit}, w)
 	httpError(err, w)
+}
+
+// QuitRoomRaft cleans up the rooms raft concensus group
+func QuitRoomRaft(w http.ResponseWriter, r *http.Request) {
+	if GameStore != nil {
+		log.Println("Trying to clean up DB")
+		quit <- true
+		cleanup := <-done
+		if cleanup {
+			log.Println("Successful clean up DB")
+		}
+	}
+	if dbExists(GameDBFolder) {
+		os.RemoveAll(GameDBFolder)
+	}
+	json.NewEncoder(w).Encode(map[string]int{"status": http.StatusOK})
 }
 
 func contains(s []string, e string) bool {
@@ -885,9 +917,10 @@ func getLeaderIP(listOfNodes []string) (string, error) {
 			continue
 		}
 		defer res.Body.Close()
-		content, err := ioutil.ReadAll(res.Body)
+		// content, err := ioutil.ReadAll(res.Body)
 		var j interface{}
-		err = json.Unmarshal(content, &j)
+		// err = json.Unmarshal(content, &j)
+		err = json.NewDecoder(res.Body).Decode(&j)
 		if err != nil {
 			log.Println(err)
 			continue
@@ -896,6 +929,7 @@ func getLeaderIP(listOfNodes []string) (string, error) {
 		store := data["store"].(map[string]interface{})
 		raft := store["raft"].(map[string]interface{})
 		state := raft["state"].(string)
+		log.Println("State for " + ip + " is: " + state)
 		if state == "Leader" {
 			return ip, nil
 		}
