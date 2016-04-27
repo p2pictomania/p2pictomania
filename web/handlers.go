@@ -917,9 +917,10 @@ func getLeaderIP(listOfNodes []string) (string, error) {
 			continue
 		}
 		defer res.Body.Close()
-		content, err := ioutil.ReadAll(res.Body)
+		// content, err := ioutil.ReadAll(res.Body)
 		var j interface{}
-		err = json.Unmarshal(content, &j)
+		// err = json.Unmarshal(content, &j)
+		err = json.NewDecoder(res.Body).Decode(&j)
 		if err != nil {
 			log.Println(err)
 			continue
@@ -928,6 +929,7 @@ func getLeaderIP(listOfNodes []string) (string, error) {
 		store := data["store"].(map[string]interface{})
 		raft := store["raft"].(map[string]interface{})
 		state := raft["state"].(string)
+		log.Println("State for " + ip + " is: " + state)
 		if state == "Leader" {
 			return ip, nil
 		}
