@@ -738,6 +738,8 @@ func Game(w http.ResponseWriter, r *http.Request) {
 
 	// Start concensus if room has only one player
 	listOfPlayers, err = getListOfPlayersForRoom(roomID)
+	log.Println("Current list of players in room:")
+	log.Println(listOfPlayers)
 	if err != nil {
 		httpError(err, w)
 		return
@@ -748,6 +750,8 @@ func Game(w http.ResponseWriter, r *http.Request) {
 		markRoomAsOpen(roomID)
 	} else {
 		listOfIPs := getListOfIPs(listOfPlayers)
+		log.Println("Current list of IPs in room:")
+		log.Println(listOfIPs)
 		leaderIP, err = getLeaderIP(listOfIPs)
 		if err != nil {
 			httpError(err, w)
