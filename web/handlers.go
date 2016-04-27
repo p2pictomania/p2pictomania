@@ -754,10 +754,8 @@ func Game(w http.ResponseWriter, r *http.Request) {
 			return
 		}
 		publicIP, _ := GetPublicIP()
-		if !contains(listOfIPs, publicIP) {
-			go setupGameDB(leaderIP, roomID)
-			time.Sleep(3000 * time.Millisecond)
-		}
+		go setupGameDB(leaderIP, roomID)
+		time.Sleep(3000 * time.Millisecond)
 	}
 
 	err = tplGame.ExecuteWriter(pongo2.Context{"nickname": Nickname,
