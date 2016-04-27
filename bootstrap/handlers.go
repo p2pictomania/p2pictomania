@@ -312,9 +312,10 @@ func sqlQuery(query string) (interface{}, error) {
 	defer resp.Body.Close()
 
 	// check for execution response
-	content, _ := ioutil.ReadAll(resp.Body)
 	var j interface{}
-	err = json.Unmarshal(content, &j)
+	err = json.NewDecoder(resp.Body).Decode(&j)
+	// content, _ := ioutil.ReadAll(resp.Body)
+	// err = json.Unmarshal(content, &j)
 	if err != nil {
 		log.Printf("Could not read json response from db server: %s", err)
 		return nil, err
