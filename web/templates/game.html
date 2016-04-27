@@ -327,6 +327,7 @@
                 //mark round as open again
                 if(Object.keys(connections).length == 0){
                     markRoomAsClosed();
+                    window.location.href = "/rooms";
                 } else {
                     markRoomAsOpen();
                 }
