@@ -127,4 +127,16 @@ var routes = Routes{
 		"/isrounddone",
 		IsRoundDone,
 	},
+	Route{
+		"AddChat",
+		"POST",
+		"/addChat",
+		AddChat,
+	},
+	Route{
+		"GetChat",
+		"GET",
+		"/getChat/{roomID}",
+		GetChat,
+	},
 }

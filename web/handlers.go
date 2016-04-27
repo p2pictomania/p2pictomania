@@ -66,6 +66,12 @@ type resultStruct struct {
 	Result string `json:"result"`
 }
 
+type chatForRoomStruct struct {
+	RoomID     int    `json:"roomID"`
+	PlayerName string `json:"Nickname"`
+	ChatText   string `json:"chatText"`
+}
+
 // httpError returns a HTTP 5xx error
 func httpError(err error, w http.ResponseWriter) {
 	if err != nil {
@@ -151,6 +157,59 @@ func SetRoundDoneForRoom(w http.ResponseWriter, r *http.Request) {
 	}
 
 	json.NewEncoder(w).Encode(map[string]int{"status": http.StatusOK})
+}
+
+// AddChat is used to add a certain chat to the db
+func AddChat(w http.ResponseWriter, r *http.Request) {
+	decoder := json.NewDecoder(r.Body)
+	defer r.Body.Close()
+	var j chatForRoomStruct
+	err := decoder.Decode(&j)
+
+	if err != nil {
+		log.Println("Could not add chat " + j.ChatText + " : " + err.Error())
+		http.Error(w, "Could not add chat "+j.ChatText+" : "+err.Error(), http.StatusInternalServerError)
+		return
+	}
+	leaderIP, err := game.GetRoomLeader(j.RoomID)
+
+	query := "INSERT into round_chat_mapping(room_id, player_name, chat_text) values (" + strconv.Itoa(j.RoomID) + ", \"" + j.PlayerName + "\", \"" + j.ChatText + "\");"
+	err = game.SqlExecute(query, leaderIP)
+
+	if err != nil {
+		log.Println("Could not add the chat text to the db: " + err.Error())
+		http.Error(w, "Could not add the chat text to the db: "+err.Error(), http.StatusInternalServerError)
+		return
+	}
+
+	json.NewEncoder(w).Encode(map[string]int{"status": http.StatusOK})
+}
+
+// GetChat is used to get all the chats for a given room
+func GetChat(w http.ResponseWriter, r *http.Request) {
+	urlVars := mux.Vars(r)
+	roomID := urlVars["roomID"]
+	roomIDint, err := strconv.Atoi(roomID)
+	leaderIP, err := game.GetRoomLeader(roomIDint)
+	if err != nil {
+		log.Println("Error while getting room leader")
+		http.Error(w, "Error while getting room leader", http.StatusInternalServerError)
+		return
+	}
+
+	query := "SELECT * from round_chat_mapping where room_id=" + roomID + ";"
+	result, err := game.SqlQuery(query, leaderIP)
+	if err != nil {
+		log.Println("Couldn't fetch chats for room : " + err.Error())
+		http.Error(w, "Couldn't fetch chats for room : "+err.Error(), http.StatusInternalServerError)
+		return
+	}
+
+	jsonData := result.(map[string]interface{})
+	results := jsonData["results"].([]interface{})
+	row := results[0].(map[string]interface{})
+	json.NewEncoder(w).Encode(row)
+
 }
 
 func random(min, max int) int {
