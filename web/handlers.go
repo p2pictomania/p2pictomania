@@ -753,7 +753,6 @@ func Game(w http.ResponseWriter, r *http.Request) {
 			httpError(err, w)
 			return
 		}
-		publicIP, _ := GetPublicIP()
 		go setupGameDB(leaderIP, roomID)
 		time.Sleep(3000 * time.Millisecond)
 	}
