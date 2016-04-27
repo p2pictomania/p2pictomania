@@ -220,7 +220,7 @@
         } else if (data["kind"] === "leaveRoom") {
             connections[data["nickname"]]["conn"].close();
             delete connections[data["nickname"]];
-            if(Object.keys(connections).length == 1){
+            if(Object.keys(connections).length == 0){
                 $("#leave_room").click();
             }
             $("#scorerow-"+data["nickname"]).remove();
@@ -328,7 +328,7 @@
                     //send a message to peers
                     var data = {"kind": "leaveRoom", "nickname": "{{nickname}}"};
                     me.send(JSON.stringify(data));
-                    if(Object.keys(connections).length == 1){
+                    if(Object.keys(connections).length <= 1){
                         markRoomAsClosed();
                         window.location.href = "/rooms";
                     } else {
