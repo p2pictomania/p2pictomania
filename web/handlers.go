@@ -693,6 +693,21 @@ func Logout(w http.ResponseWriter, r *http.Request) {
 		http.Error(w, "nickname not logged out", http.StatusInternalServerError)
 		return
 	}
+
+	//clean up room raft if exists
+	if GameStore != nil {
+		log.Println("Trying to clean up DB")
+		quit <- true
+		cleanup := <-done
+		if cleanup {
+			log.Println("Successful clean up DB")
+		}
+	}
+	if dbExists(GameDBFolder) {
+		os.RemoveAll(GameDBFolder)
+	}
+	// end cleanup
+
 	Nickname = ""
 	Login(w, r)
 }
@@ -749,6 +764,22 @@ func Game(w http.ResponseWriter, r *http.Request) {
 		"dns": Config.BootstrapDNSEndpoint, "roomID": roomID,
 		"maxPlayers": MaxRoomPlayers, "playerIP": ip, "roomTimeLimit": RoomTimeLimit}, w)
 	httpError(err, w)
+}
+
+// QuitRoomRaft cleans up the rooms raft concensus group
+func QuitRoomRaft(w http.ResponseWriter, r *http.Request) {
+	if GameStore != nil {
+		log.Println("Trying to clean up DB")
+		quit <- true
+		cleanup := <-done
+		if cleanup {
+			log.Println("Successful clean up DB")
+		}
+	}
+	if dbExists(GameDBFolder) {
+		os.RemoveAll(GameDBFolder)
+	}
+	json.NewEncoder(w).Encode(map[string]int{"status": http.StatusOK})
 }
 
 func contains(s []string, e string) bool {

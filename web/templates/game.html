@@ -220,6 +220,9 @@
         } else if (data["kind"] === "leaveRoom") {
             connections[data["nickname"]]["conn"].close();
             delete connections[data["nickname"]];
+            if(Object.keys(connections).length == 1){
+                $("#leave_room").click();
+            }
             $("#scorerow-"+data["nickname"]).remove();
         }
     }
@@ -321,16 +324,19 @@
         $("#leave_room").on("click", function(){
             $.post("{{dns}}/player/leave", JSON.stringify({"roomID": {{roomID}}, "nickName": "{{nickname}}"}), function(data){
                 console.log("room leave successful");
-                //send a message to peers
-                var data = {"kind": "leaveRoom", "nickname": "{{nickname}}"};
-                me.send(JSON.stringify(data));
-                //mark round as open again
-                if(Object.keys(connections).length == 0){
-                    markRoomAsClosed();
-                    window.location.href = "/rooms";
-                } else {
-                    markRoomAsOpen();
-                }
+                $.get("/roomraftquit", function(data){
+                    //send a message to peers
+                    var data = {"kind": "leaveRoom", "nickname": "{{nickname}}"};
+                    me.send(JSON.stringify(data));
+                    if(Object.keys(connections).length == 1){
+                        markRoomAsClosed();
+                        window.location.href = "/rooms";
+                    } else {
+                        markRoomAsOpen();
+                    }
+                }).fail(function(){
+                    alert("couldn't quit room's raft group");
+                });
             }).fail(function(){
                 alert("couldn't leave room successfully");
             });

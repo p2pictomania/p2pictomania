@@ -139,4 +139,10 @@ var routes = Routes{
 		"/getChat/{roomID}",
 		GetChat,
 	},
+	Route{
+		"QuitRoomRaft",
+		"GET",
+		"/roomraftquit",
+		QuitRoomRaft,
+	},
 }
