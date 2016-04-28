@@ -909,32 +909,33 @@ func waitForAPIStartAndLeader() {
 }
 
 func getLeaderIP(listOfNodes []string) (string, error) {
-	for _, ip := range listOfNodes {
-		url := fmt.Sprintf("http://%s:%d/status", ip, GameDBApiPort)
-		res, err := http.Get(url)
-		if err != nil {
-			log.Println(err)
-			continue
-		}
-		defer res.Body.Close()
-		// content, err := ioutil.ReadAll(res.Body)
-		var j interface{}
-		// err = json.Unmarshal(content, &j)
-		err = json.NewDecoder(res.Body).Decode(&j)
-		if err != nil {
-			log.Println(err)
-			continue
-		}
-		data := j.(map[string]interface{})
-		store := data["store"].(map[string]interface{})
-		raft := store["raft"].(map[string]interface{})
-		state := raft["state"].(string)
-		log.Println("State for " + ip + " is: " + state)
-		if state == "Leader" {
-			return ip, nil
-		}
-	}
-	return "", errors.New("Could not find bootstrap hosts")
+	// for _, ip := range listOfNodes {
+	// 	url := fmt.Sprintf("http://%s:%d/status", ip, GameDBApiPort)
+	// 	res, err := http.Get(url)
+	// 	if err != nil {
+	// 		log.Println(err)
+	// 		continue
+	// 	}
+	// 	defer res.Body.Close()
+	// 	// content, err := ioutil.ReadAll(res.Body)
+	// 	var j interface{}
+	// 	// err = json.Unmarshal(content, &j)
+	// 	err = json.NewDecoder(res.Body).Decode(&j)
+	// 	if err != nil {
+	// 		log.Println(err)
+	// 		continue
+	// 	}
+	// 	data := j.(map[string]interface{})
+	// 	store := data["store"].(map[string]interface{})
+	// 	raft := store["raft"].(map[string]interface{})
+	// 	state := raft["state"].(string)
+	// 	log.Println("State for " + ip + " is: " + state)
+	// 	if state == "Leader" {
+	// 		return ip, nil
+	// 	}
+	// }
+	// return "", errors.New("Could not find bootstrap hosts")
+	return listOfNodes[0], nil
 }
 
 //startRoomRound sets round for room as 1 as this is only called by the starting node
@@ -975,7 +976,7 @@ func setupGameDB(joinAddr string, roomID string) {
 	dataPath := GameDBFolder
 	httpAddr := ":" + strconv.Itoa(GameDBApiPort)
 	raftAddr := ":" + strconv.Itoa(GameDBRaftPort)
-	disRedirect := true
+	disRedirect := false
 	dataPath, err := filepath.Abs(dataPath)
 	if err != nil {
 		log.Fatalf("failed to determine absolute data path: %s", err.Error())
