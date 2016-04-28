@@ -97,6 +97,7 @@
     var me;
     var connections = {};
     var currentRound = 0;
+    var retryNumber = 0;
     var inc = false;
 
     function startRoundWhenReady(){
@@ -105,6 +106,7 @@
             url: "/isroundready?roundid="+currentRound+"&roomid={{roomID}}&num={{maxPlayers}}",
             dataType: "json",
             success: function (data) {
+                retryNumber = 0;
                 $(".has-success").each(function(){
                     $(this).removeClass("has-success");
                     $(this).removeClass("has-error");
@@ -123,6 +125,13 @@
                 $('.countdown').data('countdown').update(+(new Date) + {{roomTimeLimit}}).start();
             },
             error: function () {
+                retryNumber += 1;
+                if(retryNumber > 20) {
+                    $.get("/getround?roomid={{roomID}}", function(data){
+                        var jsonData = JSON.parse(data);
+                        currentRound = jsonData["roundNum"];
+                    });
+                }
                 setTimeout(function () {
                     startRoundWhenReady();
                     // startRound();
