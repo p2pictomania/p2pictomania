@@ -5,10 +5,10 @@ import (
 	"encoding/json"
 	"errors"
 	"fmt"
-	"github.com/bogdanovich/dns_resolver"
 	"github.com/gorilla/mux"
 	"io/ioutil"
 	"log"
+	"net"
 	"net/http"
 	"net/url"
 	"strconv"
@@ -277,18 +277,18 @@ func CloseRoom(w http.ResponseWriter, r *http.Request) {
 }
 
 func sqlQuery(query string) (interface{}, error) {
-	// listOfBootstrapNodes, _ := net.LookupHost(Config.DNS)
-	resolver := dns_resolver.New([]string{"ns1.dnsimple.com", "ns2.dnsimple.com"})
-	resolver.RetryTimes = 5
-	bootiplist, err := resolver.LookupHost(Config.DNS)
-	if err != nil {
-		log.Println("DNS lookup error for autogra.de in CheckForBootstrapNode")
-		log.Fatal(err.Error())
-	}
-	listOfBootstrapNodes := []string{}
-	for _, val := range bootiplist {
-		listOfBootstrapNodes = append(listOfBootstrapNodes, val.String())
-	}
+	listOfBootstrapNodes, _ := net.LookupHost(Config.DNS)
+	// resolver := dns_resolver.New([]string{"ns1.dnsimple.com", "ns2.dnsimple.com"})
+	// resolver.RetryTimes = 5
+	// bootiplist, err := resolver.LookupHost(Config.DNS)
+	// if err != nil {
+	// 	log.Println("DNS lookup error for autogra.de in CheckForBootstrapNode")
+	// 	log.Fatal(err.Error())
+	// }
+	// listOfBootstrapNodes := []string{}
+	// for _, val := range bootiplist {
+	// 	listOfBootstrapNodes = append(listOfBootstrapNodes, val.String())
+	// }
 
 	leaderIP, err := GetLeaderIP(listOfBootstrapNodes)
 	if err != nil {
@@ -334,24 +334,24 @@ func sqlQuery(query string) (interface{}, error) {
 }
 
 func sqlExecute(query string) error {
-	//listOfBootstrapNodes, _ := net.LookupHost(Config.DNS)
+	listOfBootstrapNodes, _ := net.LookupHost(Config.DNS)
 
-	resolver := dns_resolver.New([]string{"ns1.dnsimple.com", "ns2.dnsimple.com"})
-	// In case of i/o timeout
-	resolver.RetryTimes = 5
+	// resolver := dns_resolver.New([]string{"ns1.dnsimple.com", "ns2.dnsimple.com"})
+	// // In case of i/o timeout
+	// resolver.RetryTimes = 5
+	//
+	// bootiplist, err := resolver.LookupHost(Config.DNS)
+	//
+	// if err != nil {
+	// 	log.Println("DNS lookup error for autogra.de in CheckForBootstrapNode")
+	// 	log.Fatal(err.Error())
+	// }
+	//
+	// listOfBootstrapNodes := []string{}
 
-	bootiplist, err := resolver.LookupHost(Config.DNS)
-
-	if err != nil {
-		log.Println("DNS lookup error for autogra.de in CheckForBootstrapNode")
-		log.Fatal(err.Error())
-	}
-
-	listOfBootstrapNodes := []string{}
-
-	for _, val := range bootiplist {
-		listOfBootstrapNodes = append(listOfBootstrapNodes, val.String())
-	}
+	// for _, val := range bootiplist {
+	// 	listOfBootstrapNodes = append(listOfBootstrapNodes, val.String())
+	// }
 
 	leaderIP, err := GetLeaderIP(listOfBootstrapNodes)
 

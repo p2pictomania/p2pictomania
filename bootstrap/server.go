@@ -7,6 +7,7 @@ import (
 	"fmt"
 	"io/ioutil"
 	"log"
+	"net"
 	"net/http"
 	"os"
 	"os/signal"
@@ -18,7 +19,6 @@ import (
 	sql "github.com/abhishekshivanna/rqlite/db"
 	httpd "github.com/abhishekshivanna/rqlite/http"
 	"github.com/abhishekshivanna/rqlite/store"
-	"github.com/bogdanovich/dns_resolver"
 )
 
 // DNSRecord holds the data of a resolved DNS name
@@ -83,7 +83,7 @@ func addSelfToDNS() error {
 		log.Fatalf("Cannot get public IP: %s", err)
 		return err
 	}
-	var jsonStr = []byte(`{"record": {"name": "", "record_type": "A", "content": "` + publicIP + `", "ttl": 1, "prio": 10}}`)
+	var jsonStr = []byte(`{"record": {"name": "", "record_type": "A", "content": "` + publicIP + `", "ttl": 3600, "prio": 10}}`)
 	req, err := http.NewRequest("POST", url, bytes.NewBuffer(jsonStr))
 	req.Close = true
 	req.Header.Set("X-DNSimple-Token", Config.DnsimpleAuthToken)
@@ -348,22 +348,23 @@ func join(joinAddr, raftAddr string) error {
 // and returns true if if added itself to the Bootstrap nodes list
 func checkForBootstrapNodes() bool {
 
-	resolver := dns_resolver.New([]string{"ns1.dnsimple.com", "ns2.dnsimple.com"})
-	// In case of i/o timeout
-	resolver.RetryTimes = 5
+	// resolver := dns_resolver.New([]string{"ns1.dnsimple.com", "ns2.dnsimple.com"})
+	// // In case of i/o timeout
+	// resolver.RetryTimes = 5
+	//
+	// bootiplist, err := resolver.LookupHost(Config.DNS)
+	//
+	// if err != nil {
+	// 	log.Println("DNS lookup error for autogra.de in CheckForBootstrapNode")
+	// 	log.Fatal(err.Error())
+	// }
+	//
+	// listOfBootstrapNodes := []string{}
+	// for _, val := range bootiplist {
+	// 	listOfBootstrapNodes = append(listOfBootstrapNodes, val.String())
+	// }
 
-	bootiplist, err := resolver.LookupHost(Config.DNS)
-
-	if err != nil {
-		log.Println("DNS lookup error for autogra.de in CheckForBootstrapNode")
-		log.Fatal(err.Error())
-	}
-
-	listOfBootstrapNodes := []string{}
-
-	for _, val := range bootiplist {
-		listOfBootstrapNodes = append(listOfBootstrapNodes, val.String())
-	}
+	listOfBootstrapNodes, _ := net.LookupHost(Config.DNS)
 
 	fmt.Print("Bootstrap result=")
 	fmt.Println(listOfBootstrapNodes)
